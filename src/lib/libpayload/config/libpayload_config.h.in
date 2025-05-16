@@ -1,0 +1,18 @@
+#ifndef PAYLOAD_EXTRACT_CONFIG_H
+#define PAYLOAD_EXTRACT_CONFIG_H
+
+// Includes
+#cmakedefine HAVE_LINUX_FALLOC_H 1
+
+// Functions
+#cmakedefine HAVE_FALLOCATE 1
+#cmakedefine HAVE_FALLOCATE64 1
+#cmakedefine HAVE_FTRUNCATE64 1
+#cmakedefine HAVE_LSEEK64 1
+#cmakedefine HAVE_PREAD64 1
+#cmakedefine HAVE_PWRITE64 1
+
+// Symbols
+#cmakedefine HAVE_LSEEK64_PROTOTYPE 1
+
+#endif // end PAYLOAD_EXTRACT_CONFIG_H

@@ -1,0 +1,20 @@
+[submodule "src/lib/cpr"]
+	path = src/lib/cpr
+	url = https://github.com/sekaiacg/cpr
+	branch = macosx
+[submodule "src/lib/bzip2"]
+	path = src/lib/bzip2
+	url = https://android.googlesource.com/platform/external/bzip2
+	branch = main
+[submodule "src/lib/protobuf"]
+	path = src/lib/protobuf
+	url = https://android.googlesource.com/platform/external/protobuf
+	branch = main
+[submodule "src/lib/xz"]
+	path = src/lib/xz
+	url = https://github.com/tukaani-project/xz.git
+	branch = master
+[submodule "src/lib/zstd"]
+	path = src/lib/zstd
+	url = https://github.com/facebook/zstd
+	branch = dev
