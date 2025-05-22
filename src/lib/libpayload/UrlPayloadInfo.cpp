@@ -77,7 +77,7 @@ namespace skkk {
 			}
 		offset:
 			offset += PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize + compressedSize;
-			buf.resize(0);
+			buf.clear();
 		}
 		LOGCE("File: payload.bin not found!");
 		return false;
