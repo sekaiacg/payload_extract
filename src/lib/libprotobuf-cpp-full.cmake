@@ -113,7 +113,7 @@ set(libprotobuf_config "${TARGET_SRC_DIR}/config")
 ###################################################libprotobuf_cpp_lite###########################################################
 set(TARGET protobuf-cpp-lite)
 add_library(${TARGET} STATIC ${libprotobuf_cpp_lite_srcs})
-target_include_directories(${TARGET} PRIVATE "${libprotobuf_headers}")
+target_include_directories(${TARGET} PUBLIC "${libprotobuf_headers}")
 target_include_directories(${TARGET} PRIVATE "${libprotobuf_config}")
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${libprotobuf_cflags_defaults}>"
@@ -132,9 +132,6 @@ target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${libprotobuf_cflags_full}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${libprotobuf_cflags_full}>"
 )
-#if (CMAKE_SYSTEM_NAME STREQUAL "Android")
-#    target_link_libraries(${TARGET} PRIVATE log)
-#endif ()
 ###################################################################################################################################
 
 #######################################################libproto####################################################################
