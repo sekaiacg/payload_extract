@@ -18,10 +18,10 @@ namespace skkk {
 		return -1;
 	}
 
-	int FileWriter::commonWrite(const decompress_func_t decompress_func, int payloadBinFd, int outFd,
+	int FileWriter::commonWrite(const decompressPtr &decompress, int payloadBinFd, int outFd,
 	                            const FileOperation &operation) {
 		int ret = -1;
-		uint8_t *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
+		auto *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
 		if (srcBuf) {
 			if (operation.isUrl) {
 				ret = urlRead(srcBuf, operation);
@@ -29,10 +29,10 @@ namespace skkk {
 				ret = blobRead(payloadBinFd, srcBuf, operation.dataOffset, operation.dataLength);
 			}
 			if (!ret) {
-				char *destBuf = static_cast<char *>(malloc(operation.destLength));
+				auto *destBuf = static_cast<uint8_t *>(malloc(operation.destLength));
 				if (destBuf) {
 					uint64_t outDestLength = operation.destLength;
-					ret = decompress_func(srcBuf, operation.dataLength, destBuf, outDestLength);
+					ret = decompress(srcBuf, operation.dataLength, destBuf, outDestLength);
 					if (!ret) {
 						ret = blobWrite(outFd, destBuf, operation.fileOffset, operation.destLength);
 					}
@@ -46,7 +46,7 @@ namespace skkk {
 
 	int FileWriter::directWrite(int payloadFd, int outFd, const FileOperation &operation) {
 		int ret = -1;
-		uint8_t *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
+		auto *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
 		if (srcBuf) {
 			if (operation.isUrl) {
 				ret = urlRead(srcBuf, operation);
@@ -61,17 +61,16 @@ namespace skkk {
 		return ret;
 	}
 
-	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
-		static constexpr char buf[1] = {0};
-		return blobWrite(outFd, buf, operation.fileOffset, 1);
-	}
-
 	int FileWriter::bzipWrite(int payloadFd, int outFd, const FileOperation &operation) {
 		int ret = commonWrite(Decompress::bzipDecompress,
 		                      payloadFd, outFd, operation);
 		return ret;
 	}
 
+	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
+		static constexpr char buf[1] = {0};
+		return blobWrite(outFd, buf, operation.fileOffset, 1);
+	}
 
 	int FileWriter::xzWrite(int payloadFd, int outFd, const FileOperation &operation) {
 		int ret = commonWrite(Decompress::xzDecompress,
