@@ -35,7 +35,7 @@ static void usage(const ExtractOperation &eo) {
 }
 
 #ifndef PAYLOAD_EXTRACT_VERSION
-#define PAYLOAD_EXTRACT_VERSION "v0.0.0" aaa
+#define PAYLOAD_EXTRACT_VERSION "v0.0.0"
 #endif
 
 static inline void print_version() {
