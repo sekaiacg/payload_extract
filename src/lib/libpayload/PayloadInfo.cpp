@@ -33,7 +33,6 @@ namespace skkk {
 	bool PayloadInfo::handleOffset() {
 		struct stat st = {0};
 		if (stat(this->path.c_str(), &st) == 0) {
-			int i = 0;
 			unsigned char header[128] = {0};
 			uint64_t offset = 0;
 			uint64_t fileSize = st.st_size;
@@ -69,7 +68,6 @@ namespace skkk {
 						return false;
 					}
 					offset += PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize + compressedSize;
-					i++;
 				} while (offset < fileSize);
 			}
 		}
