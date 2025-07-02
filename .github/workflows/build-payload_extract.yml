@@ -127,7 +127,7 @@ jobs:
       CCACHE_BASEDIR: "${{ github.workspace }}"
       CUSTOM_CLANG_PATH: "/opt/clang"
       GCC_AARCH64_TOOLS_PATH: "/opt/gcc"
-      MINGW_LLVM_PATH: "/opt/mingw"
+      LLVM_MINGW_PATH: "/opt/mingw"
 
     steps:
       - name: Update system and install dependencies
@@ -151,15 +151,15 @@ jobs:
         run: |
           echo "GCC_AARCH64_TOOLS_PATH=${GCC_AARCH64_TOOLS_PATH}/gcc-linaro-14.0.0-2023.06-x86_64_aarch64-linux-gnu" >> $GITHUB_ENV
 
-      - name: Download mingw-llvm tools
+      - name: Download llvm-mingw tools
         run: |
           wget https://github.com/mstorsjo/llvm-mingw/releases/download/20250613/llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64.tar.xz
-          mkdir ${MINGW_LLVM_PATH}
-          tar -xf llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${MINGW_LLVM_PATH}
+          mkdir ${LLVM_MINGW_PATH}
+          tar -xf llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
 
-      - name: Setup mingw-llvm tools
+      - name: Setup llvm-mingw tools
         run: |
-          echo "MINGW_LLVM_PATH=${MINGW_LLVM_PATH}/llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
+          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v4

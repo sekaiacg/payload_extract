@@ -37,7 +37,7 @@ cmake_build()
             -DENABLE_FULL_LTO="ON"
     fi
 
-	${MAKE_CMD}
+    ${MAKE_CMD}
 }
 
 build()
@@ -55,16 +55,16 @@ build()
         local METHOD="make"
     fi
 
-	cmake_build "${TARGET}" "${METHOD}" "${ABI}" "${PLATFORM}"
+    cmake_build "${TARGET}" "${METHOD}" "${ABI}" "${PLATFORM}"
 
-	local BUILD="$OUT/src/payload_extract"
-	local PAYLOAD_EXTRACT_BIN="$BUILD/payload_extract"
-	local TARGE_DIR_NAME="payload_extract-${VERSION}-${TARGET}_${ABI}-$(TZ=UTC-8 date +%y%m%d%H%M)"
-	local TARGET_DIR_PATH="./target/${TARGET}_${ABI}/${TARGE_DIR_NAME}"
+    local BUILD="$OUT/src/payload_extract"
+    local PAYLOAD_EXTRACT_BIN="$BUILD/payload_extract"
+    local TARGE_DIR_NAME="payload_extract-${VERSION}-${TARGET}_${ABI}-$(TZ=UTC-8 date +%y%m%d%H%M)"
+    local TARGET_DIR_PATH="./target/${TARGET}_${ABI}/${TARGE_DIR_NAME}"
 
     if [ -f "$PAYLOAD_EXTRACT_BIN" ]; then
         echo "复制文件中..."
-    [[ ! -d "$TARGET_DIR_PATH" ]] && mkdir -p ${TARGET_DIR_PATH}
+        [[ ! -d "$TARGET_DIR_PATH" ]] && mkdir -p ${TARGET_DIR_PATH}
         cp -af $PAYLOAD_EXTRACT_BIN ${TARGET_DIR_PATH}
         touch -c -d "2009-01-01 00:00:00" ${TARGET_DIR_PATH}/*
         echo "编译成功: ${TARGE_DIR_NAME}"

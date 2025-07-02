@@ -29,7 +29,6 @@ cmake_build()
             -DANDROID_STL="c++_static" \
             -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_USE_LEGACY_TOOLCHAIN_FILE="OFF" \
-            -DPAYLOAD_EXTRACT_VERSION="${PAYLOAD_EXTRACT_VERSION}" \
             -DCMAKE_C_FLAGS="" \
             -DCMAKE_CXX_FLAGS="" \
             -DENABLE_FULL_LTO="ON"
@@ -70,8 +69,8 @@ cmake_build()
             -DPAYLOAD_EXTRACT_VERSION="${VERSION}" \
             -DCMAKE_BUILD_TYPE="Release" \
             -DMINGW_ABI="$ABI" \
-            -DMINGW_SYSROOT="${MINGW_LLVM_PATH}" \
-            -DCMAKE_TOOLCHAIN_FILE="$(pwd)/cmake/mingw-llvm.cmake" \
+            -DMINGW_SYSROOT="${LLVM_MINGW_PATH}" \
+            -DCMAKE_TOOLCHAIN_FILE="$(pwd)/cmake/llvm-mingw.cmake" \
             -DCMAKE_C_COMPILER_LAUNCHER="ccache" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" \
             -DCMAKE_C_FLAGS="" \
@@ -79,7 +78,7 @@ cmake_build()
             -DENABLE_FULL_LTO="ON"
     fi
 
-	${MAKE_CMD}
+    ${MAKE_CMD}
 }
 
 build()
@@ -108,7 +107,7 @@ build()
 
     if [[ -f "$PAYLOAD_EXTRACT_BIN" ]]; then
         echo "复制文件中..."
-    [[ ! -d "$TARGET_DIR_PATH" ]] && mkdir -p ${TARGET_DIR_PATH}
+        [[ ! -d "$TARGET_DIR_PATH" ]] && mkdir -p ${TARGET_DIR_PATH}
         cp -af $PAYLOAD_EXTRACT_BIN ${TARGET_DIR_PATH}
         touch -c -d "2009-01-01 00:00:00" ${TARGET_DIR_PATH}/*
         echo "编译成功: ${TARGE_DIR_NAME}"
