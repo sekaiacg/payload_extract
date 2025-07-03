@@ -8,6 +8,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_COLOR_DIAGNOSTICS ON)
 
 option(ENABLE_FULL_LTO "Enable full lto. default: OFF" OFF)
 
@@ -84,12 +85,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions("-DNDEBUG" "-UDEBUG")
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
     list(APPEND GLOBAL_CFLAGS "-O0" "-g" "-DDEBUG")
-endif ()
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    list(APPEND GLOBAL_CFLAGS "-fdiagnostics-color=always")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    list(APPEND GLOBAL_CFLAGS "-fcolor-diagnostics")
 endif ()
 
 add_compile_options(
