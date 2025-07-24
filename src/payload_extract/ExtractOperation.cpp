@@ -107,7 +107,7 @@ namespace skkk {
 
 	void ExtractOperation::extractFiles() {
 		if (!fileNodes.empty()) {
-			LOGCI(GREEN2_BOLD "Use " COLOR_NONE RED2 "%" PRIu32 COLOR_NONE GREEN2_BOLD " therads" COLOR_NONE,
+			LOGCI(GREEN2_BOLD "Using " COLOR_NONE RED2 "%" PRIu32 COLOR_NONE GREEN2_BOLD " threads" COLOR_NONE,
 			      threadNum);
 			if (threadNum == 1) {
 				for (auto &fileNode: fileNodes) {
