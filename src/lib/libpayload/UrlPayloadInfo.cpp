@@ -1,4 +1,4 @@
-#include "payload/BinUtils.h"
+#include "payload/endian.h"
 #include "payload/HttpDownload.h"
 #include "payload/io.h"
 #include "payload/PayloadInfo.h"
@@ -54,29 +54,28 @@ namespace skkk {
 				LOGCE("Url: It is not ZIP format.");
 				return false;
 			};
-			uint64_t compressedSize = getLong(header, 18);
-			uint64_t uncompressedSize = getLong(header, 22);
-			const uint64_t filenameSize = getShort(header, 26);
-			const uint64_t extraSize = getShort(header, 28);
+			uint64_t compressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 18));
+			uint64_t uncompressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 22));
+			const uint64_t filenameSize = le16toh(*reinterpret_cast<uint16_t *>(header + 26));
+			const uint64_t extraSize = le16toh(*reinterpret_cast<uint16_t *>(header + 28));
 			std::string filename;
-			if (filenameSize + extraSize > reqBufSize - PAYLOAD_HEADER_BASE_SIZE) goto offset;
-			filename = std::string(reinterpret_cast<char *>(header) + PAYLOAD_HEADER_BASE_SIZE,
-			                       0, filenameSize);
+			if (filenameSize + extraSize > reqBufSize - PLH_SIZE) goto offset;
+			filename = std::string(reinterpret_cast<char *>(header) + PLH_SIZE, 0, filenameSize);
 			LOGCD("                  Url: part=%s", filename.c_str());
 			if (compressedSize >= 0xFFFFFFFF || uncompressedSize >= 0xFFFFFFFF) {
-				compressedSize = getLong64(header, PAYLOAD_HEADER_BASE_SIZE + filenameSize + 4);
-				uncompressedSize = getLong64(header, PAYLOAD_HEADER_BASE_SIZE + filenameSize + 4 + 8);
+				compressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4));
+				uncompressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4 + 8));
 			}
 			if (filename == "payload.bin") {
 				if (uncompressedSize == compressedSize) {
-					payloadBaseOffset = offset + PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize;
+					payloadBaseOffset = offset + PLH_SIZE + filenameSize + extraSize;
 					return true;
 				}
 				LOGCE("File: payload.bin format error!");
 				return false;
 			}
 		offset:
-			offset += PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize + compressedSize;
+			offset += PLH_SIZE + filenameSize + extraSize + compressedSize;
 			buf.clear();
 		}
 		LOGCE("File: payload.bin not found!");

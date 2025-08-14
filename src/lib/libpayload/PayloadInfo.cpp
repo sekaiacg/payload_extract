@@ -1,7 +1,7 @@
 #include <sys/stat.h>
 
-#include "payload/BinUtils.h"
 #include "payload/defs.h"
+#include "payload/endian.h"
 #include "payload/io.h"
 #include "payload/PayloadInfo.h"
 
@@ -36,38 +36,37 @@ namespace skkk {
 			unsigned char header[128] = {0};
 			uint64_t offset = 0;
 			uint64_t fileSize = st.st_size;
-			if (!getPayloadData(header, offset, PAYLOAD_HEADER_BASE_SIZE)) return false;
+			if (!getPayloadData(header, offset, PLH_SIZE)) return false;
 			if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return true;
 
 			if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
 				// search uncompressed file
 				do {
-					if (!getPayloadData(header, offset, PAYLOAD_HEADER_BASE_SIZE)) return false;
-					const uint64_t filenameSize = getShort(header, 26);
-					const uint64_t extraSize = getShort(header, 28);
-					if (!getPayloadData(header + PAYLOAD_HEADER_BASE_SIZE,
-					                    offset + PAYLOAD_HEADER_BASE_SIZE,
-					                    filenameSize + extraSize))
+					if (!getPayloadData(header, offset, PLH_SIZE)) return false;
+					const uint64_t filenameSize = le64toh(*reinterpret_cast<uint16_t *>(header + 26));
+					const uint64_t extraSize = le64toh(*reinterpret_cast<uint16_t *>(header + 28));
+					if (!getPayloadData(header + PLH_SIZE, offset + PLH_SIZE, filenameSize + extraSize))
 						return false;
 
-					std::string filename = std::string(reinterpret_cast<char *>(header) + PAYLOAD_HEADER_BASE_SIZE,
+					std::string filename = std::string(reinterpret_cast<char *>(header) + PLH_SIZE,
 					                                   0, filenameSize);
 					LOGCD("                  zip: part=%s", filename.c_str());
-					uint64_t compressedSize = getLong(header, 18);
-					uint64_t uncompressedSize = getLong(header, 22);
+					uint64_t compressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 18));
+					uint64_t uncompressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 22));
 					if (compressedSize >= 0xFFFFFFFF || uncompressedSize >= 0xFFFFFFFF) {
-						compressedSize = getLong64(header, PAYLOAD_HEADER_BASE_SIZE + filenameSize + 4);
-						uncompressedSize = getLong64(header, PAYLOAD_HEADER_BASE_SIZE + filenameSize + 4 + 8);
+						compressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4));
+						uncompressedSize = le64toh(
+							*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4 + 8));
 					}
 					if (filename == "payload.bin") {
 						if (uncompressedSize == compressedSize) {
-							payloadBaseOffset = offset + PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize;
+							payloadBaseOffset = offset + PLH_SIZE + filenameSize + extraSize;
 							return true;
 						}
 						LOGCE("File: payload.bin format error!");
 						return false;
 					}
-					offset += PAYLOAD_HEADER_BASE_SIZE + filenameSize + extraSize + compressedSize;
+					offset += PLH_SIZE + filenameSize + extraSize + compressedSize;
 				} while (offset < fileSize);
 			}
 		}

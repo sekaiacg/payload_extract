@@ -7,10 +7,8 @@
 namespace skkk {
 	template<typename T>
 	void readValueFromBytes(T &value, const uint8_t *buf, uint64_t &offset) {
-		T tmp = 0;
-		int size = sizeof(T);
-		memcpy(reinterpret_cast<uint8_t *>(&tmp), buf + offset, size);
-		offset += size;
+		auto tmp = *reinterpret_cast<const T *>(buf + offset);
+		const int size = sizeof(T);
 		switch (size) {
 			case 2:
 				value = be16toh(tmp);
@@ -24,6 +22,7 @@ namespace skkk {
 			default:
 				value = 0;
 		}
+		offset += size;
 	}
 
 	bool parseMagic(PayloadHeader &header, const uint8_t *buf, uint64_t &offset) {

@@ -14,10 +14,12 @@ namespace skkk {
 		PAYLOAD_TYPE_URL,
 	};
 
-	static constexpr uint64_t PAYLOAD_HEADER_BASE_SIZE = 30;
-	static constexpr char ZLP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
-	static constexpr uint64_t ZLP_LOCAL_FILE_HEADER_SIZE = 4;;
-
+	/**
+	 * payload header size
+	 */
+	static constexpr uint64_t PLH_SIZE = 30;
+	static constexpr uint8_t ZLP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
+	static constexpr uint32_t ZLP_LOCAL_FILE_HEADER_SIZE = 4;;
 
 	class PayloadInfo {
 		public:
