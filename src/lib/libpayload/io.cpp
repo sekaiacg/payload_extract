@@ -2,8 +2,8 @@
 #include "payload/io.h"
 
 namespace skkk {
-	int blobRead(int fd, void *buf, uint64_t offset, size_t len) {
-		ssize_t read_count = 0;
+	int blobRead(int fd, void *buf, uint64_t offset, uint64_t len) {
+		int64_t read_count = 0;
 
 		if (!buf) {
 			return -EINVAL;
@@ -15,7 +15,8 @@ namespace skkk {
 				if (!read_count) {
 					memset(buf, 0, len);
 					return 0;
-				} else if (errno != EINTR) {
+				}
+				if (errno != EINTR) {
 					return -errno;
 				}
 			}
@@ -26,7 +27,7 @@ namespace skkk {
 		return 0;
 	}
 
-	int blobWrite(int fd, const void *buf, uint64_t offset, size_t len) {
+	int blobWrite(int fd, const void *buf, uint64_t offset, uint64_t len) {
 		if (!buf) {
 			return -EINVAL;
 		}

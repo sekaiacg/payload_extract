@@ -66,6 +66,26 @@ namespace skkk {
 		return true;
 	}
 
+	uint64_t HttpDownload::getFileSize() const {
+		cpr::Session session;
+		initSession(session);
+		session.SetRange(cpr::Range{0, 1});
+		char data[32] = {};
+		cpr::Response r = session.Download(cpr::WriteCallback{
+			writeDataStr,
+			reinterpret_cast<intptr_t>(&data)
+		});
+		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
+		    r.downloaded_bytes == 2) {
+			const std::string &cr = r.header["Content-Range"];
+			if (!cr.empty()) {
+				std::string sizeStr = cr.substr(cr.rfind('/') + 1, cr.length());
+				return std::stoll(sizeStr);
+			}
+		}
+		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
+		return 0;
+	}
 
 	bool HttpDownload::downloadData(std::string &data, uint64_t targetOffset, uint64_t len) const {
 		cpr::Session session;

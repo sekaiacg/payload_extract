@@ -4,19 +4,19 @@
 #include <algorithm>
 #include <cstring>
 #include <fcntl.h>
-#include <fstream>
+#include <limits.h>
 #include <string>
 #include <string_view>
 #include <unistd.h>
 #include <vector>
 #include <sys/stat.h>
 
-static bool getFileSize(const std::string &dirPath) {
+static uint64_t getFileSize(const std::string &dirPath) {
 	struct stat st = {};
 	if (stat(dirPath.c_str(), &st) == 0) {
-		return S_ISDIR(st.st_mode);
+		return st.st_size;
 	}
-	return false;
+	return 0;
 }
 
 static bool dirExists(const std::string &dirPath) {
@@ -36,9 +36,9 @@ static bool fileExists(const std::string_view &filePath) {
 	return false;
 }
 
-static inline int mkdirs(const char *dirPath, mode_t mode) {
+static int mkdirs(const char *dirPath, mode_t mode) {
 	int len, err = 0;
-	char str[PATH_MAX + 1] = {0};
+	char str[PATH_MAX + 1] = {};
 	strncpy(str, dirPath, PATH_MAX);
 	len = strlen(str);
 	for (int i = 0; i < len; i++) {
@@ -88,7 +88,7 @@ static bool startsWithIgnoreCase(const std::string &str, const std::string &pref
 
 static void splitString(std::vector<std::string> &result, const std::string &str,
                         const std::string &delimiter, bool removeEmpty) {
-	size_t idx = 0, idx_last = 0;
+	int64_t idx = 0, idx_last = 0;
 
 	while (idx < str.size()) {
 		idx = str.find_first_of(delimiter, idx_last);
@@ -104,7 +104,7 @@ static void splitString(std::vector<std::string> &result, const std::string &str
 
 static void splitSv(std::vector<std::string_view> &result, const std::string_view &strSv,
                     const std::string_view &delimiter, bool removeEmpty) {
-	size_t idx = 0, idx_last = 0;
+	int64_t idx = 0, idx_last = 0;
 
 	while (idx < strSv.size()) {
 		idx = strSv.find_first_of(delimiter, idx_last);

@@ -8,11 +8,12 @@
 #include "payload/PayloadParse.h"
 #include "payload/Utils.h"
 #include "ExtractOperation.h"
+#include "payload/ZipParse.h"
 
 using namespace skkk;
 
 static void usage(const ExtractOperation &eo) {
-	char buf[1536] = {0};
+	char buf[1536]{};
 	snprintf(buf, 1536,
 			 BROWN "usage: [options]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-h, --help" COLOR_NONE "           " BROWN "Display this help and exit" COLOR_NONE "\n"
@@ -264,7 +265,6 @@ end:
 	// End time
 	gettimeofday(&end, nullptr);
 	printOperationTime(&start, &end);
-	// ret = RET_EXTRACT_DONE;
 
 exit_dev_close:
 	LOGCD("main exit ret=%d", ret);

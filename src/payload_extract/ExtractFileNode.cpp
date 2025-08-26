@@ -30,7 +30,7 @@ namespace skkk {
 		this->outErrorPath = std::move(outDir + "/" + fileInfo.name + "_err.txt");
 		this->fileSize = fileInfo.size;
 		this->fileOperations = fileInfo.operations;
-		this->exceptionInfos.reserve(fileOperations.size() * 256);
+		this->exceptionInfos.reserve(fileOperations.size() * 2);
 	}
 
 	int ExtractFileNode::createOutFile() const {
@@ -62,7 +62,7 @@ namespace skkk {
 	bool ExtractFileNode::initExceptionInfo(const FileOperation &fileOperation, int errCode) {
 		++extractTaskRunCount;
 		if (errCode) [[unlikely]] {
-			char buf[256] = {0};
+			char buf[256] = {};
 			snprintf(buf, 256, "name: %-15s err: %" PRId32 " [%s] "
 			         "type: %" PRIu32 " "
 			         "[dataOffset: %-13" PRIu64 " length: %-10" PRIu64 "] "
@@ -80,7 +80,7 @@ namespace skkk {
 	}
 
 	void ExtractFileNode::initExceptionByCreateOutFile(int errCode) {
-		char errBuf[256];
+		char errBuf[256] = {};
 		snprintf(errBuf, 256, "create out file err: '%s', code: %" PRId32 " [%s]",
 		         outFilePath.c_str(), errCode, strerror(abs(errCode)));
 		exceptionInfos.emplace_back(errBuf);
@@ -99,7 +99,7 @@ namespace skkk {
 
 	void ExtractFileNode::writeExceptionFileIfExists() const {
 		if (!writeSuccess) {
-			FILE *file = fopen(outErrorPath.c_str(), "wb");
+			auto *file = fopen(outErrorPath.c_str(), "wb");
 			if (file) {
 				for (const auto &exceptionInfo: exceptionInfos) {
 					fprintf(file, "%s\n", exceptionInfo.c_str());
@@ -134,7 +134,7 @@ namespace skkk {
 	bool ExtractFileNode::writeFile(bool isSilent) {
 		int outFd = createOutFile();
 		if (outFd > 0) {
-			char tag[64] = {0};
+			char tag[64] = {};
 			sprintf(tag, PART_INFO_FMT, name.c_str(), fileSize);
 			int totalSize = fileOperations.size();
 			int payloadDevFd = payloadInfo->payloadFd;
@@ -211,7 +211,7 @@ namespace skkk {
 			}
 #endif
 			if (!isSilent) {
-				char tag[64] = {0};
+				char tag[64] = {};
 				sprintf(tag, PART_INFO_FMT, name.c_str(), fileSize);
 				int i = 0;
 				std::atomic_int perIndex = 0;

@@ -20,7 +20,7 @@ namespace skkk {
 
 		public:
 			uint64_t payloadBinOffset = 0;
-			char magic[4] = {0};
+			char magic[4] = {};
 			uint64_t fileFormatVersion = VERSION_0; // payload major version
 			uint64_t manifestSize = 0; // Size of protobuf DeltaArchiveManifest
 			uint32_t metadataSignatureSize = 0; // Only present if format_version >= 2:

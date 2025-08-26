@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sys/stat.h>
 
 #include "payload/defs.h"
@@ -30,44 +31,41 @@ namespace skkk {
 		return blobRead(payloadFd, data, offset, len) == 0;
 	}
 
+
+	bool PayloadInfo::handleRawFile() {
+		uint8_t header[128] = {};
+		if (!getPayloadData(header, 0, PLH_SIZE)) return false;
+		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return true;
+
+		ZipParse zip{path, payloadFd, false};
+		if (zip.parse()) {
+			files = std::move(zip.files);
+			return true;
+		}
+		return false;
+	}
+
 	bool PayloadInfo::handleOffset() {
-		struct stat st = {0};
-		if (stat(this->path.c_str(), &st) == 0) {
-			unsigned char header[128] = {0};
-			uint64_t offset = 0;
-			uint64_t fileSize = st.st_size;
-			if (!getPayloadData(header, offset, PLH_SIZE)) return false;
-			if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return true;
-
-			if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
-				// search uncompressed file
-				do {
-					if (!getPayloadData(header, offset, PLH_SIZE)) return false;
-					const uint64_t filenameSize = le64toh(*reinterpret_cast<uint16_t *>(header + 26));
-					const uint64_t extraSize = le64toh(*reinterpret_cast<uint16_t *>(header + 28));
-					if (!getPayloadData(header + PLH_SIZE, offset + PLH_SIZE, filenameSize + extraSize))
-						return false;
-
-					std::string filename = std::string(reinterpret_cast<char *>(header) + PLH_SIZE,
-					                                   0, filenameSize);
-					LOGCD("                  zip: part=%s", filename.c_str());
-					uint64_t compressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 18));
-					uint64_t uncompressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 22));
-					if (compressedSize >= 0xFFFFFFFF || uncompressedSize >= 0xFFFFFFFF) {
-						compressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4));
-						uncompressedSize = le64toh(
-							*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4 + 8));
-					}
-					if (filename == "payload.bin") {
-						if (uncompressedSize == compressedSize) {
-							payloadBaseOffset = offset + PLH_SIZE + filenameSize + extraSize;
-							return true;
-						}
-						LOGCE("File: payload.bin format error!");
+		if (handleRawFile()) {
+			if (!files.empty()) {
+				const auto it =
+						std::ranges::find_if(files, [](const auto &zfi) { return zfi.name == "payload.bin"; });
+				if (it != files.end()) {
+					uint8_t buf[PLH_SIZE] = {};
+					if (!getPayloadData(buf, it->localHeaderOffset, PLH_SIZE)) {
+						LOGCE("Url: Failed to connect to the server, please try again later.");
 						return false;
 					}
-					offset += PLH_SIZE + filenameSize + extraSize + compressedSize;
-				} while (offset < fileSize);
+					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(buf);
+					const auto filenameSize = zlh->filenameLength;
+					const auto extraFieldSize = zlh->extraFieldLength;
+					if (zlh->compressionMethod == 0) {
+						payloadBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
+						return true;
+					}
+					LOGCE("File: payload.bin format error!");
+					return false;
+				}
 			}
 		}
 		LOGCE("File: payload.bin not found!");
@@ -75,17 +73,17 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parseHeader() {
-		uint8_t buf[kMaxPayloadHeaderSize] = {0};
+		uint8_t buf[kMaxPayloadHeaderSize] = {};
 		if (getPayloadData(buf, payloadBaseOffset, kMaxPayloadHeaderSize)) {
-			return payloadHeader.parseHeader(reinterpret_cast<const uint8_t *>(buf));
+			return payloadHeader.parseHeader(buf);
 		}
 		return false;
 	}
 
 	bool PayloadInfo::readManifestData() {
-		uint64_t &payloadBinOffset = payloadHeader.payloadBinOffset;
-		uint64_t manifestSize = payloadHeader.manifestSize;
-		uint8_t *manifest = static_cast<uint8_t *>(malloc(manifestSize));
+		auto &payloadBinOffset = payloadHeader.payloadBinOffset;
+		const auto manifestSize = payloadHeader.manifestSize;
+		auto *manifest = static_cast<uint8_t *>(malloc(manifestSize));
 		if (manifest) {
 			memset(manifest, 0, manifestSize);
 			if (getPayloadData(manifest, payloadBaseOffset + payloadBinOffset, manifestSize)) {
@@ -98,20 +96,10 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::readMetadataSignatureMessage() {
-		PayloadHeader &pHeader = payloadHeader;
-		uint64_t &payloadBinOffset = payloadHeader.payloadBinOffset;
-		uint64_t metadataSignatureSize = pHeader.metadataSignatureSize;
-		uint8_t *metadataSignatureMessage = static_cast<uint8_t *>(malloc(metadataSignatureSize));
-		if (metadataSignatureMessage) {
-			memset(metadataSignatureMessage, 0, metadataSignatureSize);
-			if (getPayloadData(metadataSignatureMessage, payloadBaseOffset + payloadBinOffset,
-			                   metadataSignatureSize)) {
-				pHeader.metadata_signature_message = metadataSignatureMessage;
-				payloadBinOffset += metadataSignatureSize;
-				return true;
-			}
-		}
-		return false;
+		auto &pHeader = payloadHeader;
+		// Skip manifest signature message
+		payloadHeader.payloadBinOffset += pHeader.metadataSignatureSize;
+		return true;
 	}
 
 	bool PayloadInfo::readHeaderData() {
@@ -127,11 +115,10 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parseManifestData() {
-		PayloadHeader &pHeader = payloadHeader;
-		DeltaArchiveManifest &pManifest = payloadManifest.manifest;
-		int manifestSize = pHeader.manifestSize;
-		uint8_t *manifestData = pHeader.manifest;
-		// bool a = pManifest.ParsePartialFromArray(manifestData, manifestSize);
+		auto &pHeader = payloadHeader;
+		auto &pManifest = payloadManifest.manifest;
+		auto manifestSize = pHeader.manifestSize;
+		const auto *manifestData = pHeader.manifest;
 		if (pManifest.ParseFromArray(manifestData, manifestSize)) {
 			pHeader.blockSize = pManifest.block_size();
 			return true;
@@ -141,28 +128,28 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parsePayloadFileInfo() {
-		auto &manifest = payloadManifest.manifest;
-		uint32_t minorVersion = manifest.minor_version();
+		const auto &manifest = payloadManifest.manifest;
+		const auto minorVersion = manifest.minor_version();
 		// Minor version 0 is full payload, everything else is delta payload.
 		auto &pFileMap = payloadManifest.payloadFileInfo.payloadFileMap;
 		uint64_t offset = payloadBaseOffset + payloadHeader.payloadBinOffset;
-		int partSize = manifest.partitions_size();
+		auto partSize = manifest.partitions_size();
 
 		PayloadHeader &pHeader = payloadHeader;
 		pHeader.partitionSize = partSize;
 		pHeader.minorVersion = minorVersion;
 		pHeader.securityPatchLevel = manifest.security_patch_level();
 		for (const PartitionUpdate &pu: manifest.partitions()) {
-			const PartitionInfo &npi = pu.new_partition_info();
-			auto &partName = pu.partition_name();
+			const auto &npi = pu.new_partition_info();
+			const auto &partName = pu.partition_name();
 			//		uint64_t fileSize = npi.size();
-			auto &a = pu.version();
+			const auto &a = pu.version();
 
 			auto &fileInfo = pFileMap[partName] = {partName, npi.size()};
-			std::vector<FileOperation> &operations = fileInfo.operations;
+			auto &operations = fileInfo.operations;
 			operations.reserve(pu.operations_size());
 
-			bool isUrl = payloadType == PAYLOAD_TYPE_URL;
+			const bool isUrl = payloadType == PAYLOAD_TYPE_URL;
 			cpr::Url url{path};
 
 			for (const InstallOperation &io: pu.operations()) {

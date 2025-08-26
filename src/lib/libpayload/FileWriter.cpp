@@ -68,7 +68,7 @@ namespace skkk {
 	}
 
 	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
-		static constexpr char buf[1] = {0};
+		static constexpr char buf[1] = {};
 		return blobWrite(outFd, buf, operation.fileOffset, 1);
 	}
 

@@ -1,8 +1,10 @@
+#include <algorithm>
+
 #include "payload/endian.h"
 #include "payload/HttpDownload.h"
 #include "payload/io.h"
 #include "payload/PayloadInfo.h"
-#include "payload/Utils.h"
+#include "payload/ZipParse.h"
 
 namespace skkk {
 	bool UrlPayloadInfo::initPayloadFile() {
@@ -39,44 +41,49 @@ namespace skkk {
 		return ret;
 	}
 
+	bool UrlPayloadInfo::handleRawFile() {
+		uint8_t header[128] = {};
+		FileBuffer fb{header, 0};
+		if (!downloadData(fb, 0, ZLP_LOCAL_FILE_HEADER_SIZE)) {
+			LOGCE("Url: Failed to connect to the server, please try again later.");
+			return false;
+		}
+		if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
+			ZipParse zip(path, true, sslVerification);
+			if (zip.parse()) {
+				files = std::move(zip.files);
+				return true;
+			}
+		} else {
+			LOGCE("Url: It is not ZIP format.");
+		}
+		return false;
+	}
+
 	bool UrlPayloadInfo::handleOffset() {
-		uint64_t offset = 0;
-		std::string buf;
-		int reqBufSize = 100;
-		buf.reserve(reqBufSize);
-		for (int i = 0; i <= 10; i++) {
-			auto *header = reinterpret_cast<uint8_t *>(buf.data());
-			if (!downloadData(buf, offset, reqBufSize)) {
-				LOGCE("Url: Failed to connect to the server, please try again later.");
-				return false;
-			}
-			if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) != 0) {
-				LOGCE("Url: It is not ZIP format.");
-				return false;
-			};
-			uint64_t compressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 18));
-			uint64_t uncompressedSize = le32toh(*reinterpret_cast<uint32_t *>(header + 22));
-			const uint64_t filenameSize = le16toh(*reinterpret_cast<uint16_t *>(header + 26));
-			const uint64_t extraSize = le16toh(*reinterpret_cast<uint16_t *>(header + 28));
-			std::string filename;
-			if (filenameSize + extraSize > reqBufSize - PLH_SIZE) goto offset;
-			filename = std::string(reinterpret_cast<char *>(header) + PLH_SIZE, 0, filenameSize);
-			LOGCD("                  Url: part=%s", filename.c_str());
-			if (compressedSize >= 0xFFFFFFFF || uncompressedSize >= 0xFFFFFFFF) {
-				compressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4));
-				uncompressedSize = le64toh(*reinterpret_cast<uint64_t *>(header + PLH_SIZE + filenameSize + 4 + 8));
-			}
-			if (filename == "payload.bin") {
-				if (uncompressedSize == compressedSize) {
-					payloadBaseOffset = offset + PLH_SIZE + filenameSize + extraSize;
-					return true;
+		if (handleRawFile()) {
+			if (!files.empty()) {
+				const auto it =
+						std::ranges::find_if(files, [](const auto &zfi) { return zfi.name == "payload.bin"; });
+				if (it != files.end()) {
+					uint8_t buf[PLH_SIZE] = {};
+					auto header = reinterpret_cast<uint8_t *>(&buf);
+					FileBuffer fb{header, 0};
+					if (!downloadData(fb, it->localHeaderOffset, PLH_SIZE)) {
+						LOGCE("Url: Failed to connect to the server, please try again later.");
+						return false;
+					}
+					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(header);
+					const auto filenameSize = zlh->filenameLength;
+					const auto extraFieldSize = zlh->extraFieldLength;
+					if (it->compression == 0) {
+						payloadBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
+						return true;
+					}
+					LOGCE("File: payload.bin format error!");
+					return false;
 				}
-				LOGCE("File: payload.bin format error!");
-				return false;
 			}
-		offset:
-			offset += PLH_SIZE + filenameSize + extraSize + compressedSize;
-			buf.clear();
 		}
 		LOGCE("File: payload.bin not found!");
 		return false;
@@ -91,9 +98,9 @@ namespace skkk {
 	}
 
 	bool UrlPayloadInfo::readManifestData() {
-		uint64_t &payloadBinOffset = payloadHeader.payloadBinOffset;
-		uint64_t manifestSize = payloadHeader.manifestSize;
-		uint8_t *manifest = static_cast<uint8_t *>(malloc(manifestSize));
+		auto &payloadBinOffset = payloadHeader.payloadBinOffset;
+		const auto manifestSize = payloadHeader.manifestSize;
+		auto *manifest = static_cast<uint8_t *>(malloc(manifestSize));
 		if (manifest) {
 			memset(manifest, 0, manifestSize);
 			FileBuffer fb = {manifest, 0};
@@ -109,7 +116,7 @@ namespace skkk {
 
 	bool UrlPayloadInfo::readMetadataSignatureMessage() {
 		PayloadHeader &pHeader = payloadHeader;
-		// TODO Read manifest signature message
+		// Skip manifest signature message
 		payloadHeader.payloadBinOffset += pHeader.metadataSignatureSize;
 		return true;
 	}

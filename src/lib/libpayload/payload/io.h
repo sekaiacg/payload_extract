@@ -7,9 +7,9 @@
 #include <cstring>
 
 namespace skkk {
-	int blobRead(int fd, void *buf, uint64_t offset, size_t len);
+	int blobRead(int fd, void *buf, uint64_t offset, uint64_t len);
 
-	int blobWrite(int fd, const void *buf, uint64_t offset, size_t len);
+	int blobWrite(int fd, const void *buf, uint64_t offset, uint64_t len);
 }
 
 #endif //PAYLOAD_EXTRACT_IO_H
