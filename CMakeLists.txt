@@ -65,7 +65,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(APPEND GLOBAL_LDFLAGS_RELEASE "-Wl,-dead_strip,-S,-x")
 endif ()
 
-if (NOT CMAKE_SYSTEM_NAME MATCHES "Android|Darwin")
+if (CMAKE_SYSTEM_NAME MATCHES "Windows")
     list(APPEND GLOBAL_CFLAGS "-static")
     list(APPEND GLOBAL_LDFLAGS "-static")
 endif ()
