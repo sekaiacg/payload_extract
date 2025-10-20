@@ -2,7 +2,7 @@ set(TARGET payload)
 
 set(TARGET_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
-set(TARGET_CFLAGS "-Wno-user-defined-warnings")
+set(TARGET_CFLAGS)
 
 set(liberofs_function_list
     "ftruncate64"
