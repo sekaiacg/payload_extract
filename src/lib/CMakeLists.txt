@@ -30,7 +30,7 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
     # MbedTls
     include(FetchContent)
     FetchContent_Declare(MbedTLS
-        URL https://github.com/Mbed-TLS/mbedtls/releases/download/v3.6.3.1/mbedtls-3.6.3.1.tar.bz2
+        URL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.5/mbedtls-3.6.5.tar.bz2
         USES_TERMINAL_DOWNLOAD TRUE
         OVERRIDE_FIND_PACKAGE
     )
