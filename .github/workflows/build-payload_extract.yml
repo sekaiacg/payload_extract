@@ -11,7 +11,7 @@ on:
       version:
         description: 'Version'
         required: false
-        default: 'v1.2.7-25082600'
+        default: 'v1.2.7-25102000'
 
 jobs:
   release:
@@ -52,10 +52,6 @@ jobs:
       CCACHE_BASEDIR: "${{ github.workspace }}"
 
     steps:
-      - name: Update system and install dependencies
-        run: |
-          sudo apt update && sudo apt install llvm -y
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -130,36 +126,23 @@ jobs:
       LLVM_MINGW_PATH: "/opt/mingw"
 
     steps:
-      - name: Update system and install dependencies
+      - name: Setup clang+llvm
         run: |
-          sudo apt update && sudo apt install llvm -y
-
-      - name: Download and install clang+llvm
-        run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          mkdir ${CUSTOM_CLANG_PATH}
-          tar -xf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz -C ${CUSTOM_CLANG_PATH}
-          echo "CUSTOM_CLANG_PATH=${CUSTOM_CLANG_PATH}/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04" >> $GITHUB_ENV
-
-      - name: Download gcc-aarch64 tools
-        run: |
-          wget https://github.com/sekaiacg/erofs-utils/releases/download/v1.7.1-231221/gcc-linaro-14.0.0-2023.06-x86_64_aarch64-linux-gnu.tar.xz
-          mkdir ${GCC_AARCH64_TOOLS_PATH}
-          tar -xf gcc-linaro-14.0.0-2023.06-x86_64_aarch64-linux-gnu.tar.xz -C ${GCC_AARCH64_TOOLS_PATH}
+          apt list --installed | grep -E "^clang-[0-9]" | cut -d"/" -f1 | xargs -i sudo apt remove --autoremove {}
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list
+          sudo apt update && sudo apt install clang llvm lld
 
       - name: Setup gcc-aarch64 tools
         run: |
-          echo "GCC_AARCH64_TOOLS_PATH=${GCC_AARCH64_TOOLS_PATH}/gcc-linaro-14.0.0-2023.06-x86_64_aarch64-linux-gnu" >> $GITHUB_ENV
-
-      - name: Download llvm-mingw tools
-        run: |
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20250613/llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64.tar.xz
-          mkdir ${LLVM_MINGW_PATH}
-          tar -xf llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
+          sudo apt update && sudo apt install cpp-14-aarch64-linux-gnu gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu
 
       - name: Setup llvm-mingw tools
         run: |
-          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20250613-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251007/llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64.tar.xz
+          mkdir ${LLVM_MINGW_PATH}
+          tar -xf llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
+          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v4

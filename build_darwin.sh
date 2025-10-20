@@ -8,12 +8,14 @@ cmake_build()
     local METHOD=$2
     local ABI=$3
 
+    local MAKE_CMD=""
+    local BUILD_METHOD=""
     if [[ $METHOD == "Ninja" ]]; then
-        local BUILD_METHOD="-G Ninja"
-        local MAKE_CMD="time -p cmake --build $OUT -j$(sysctl -n hw.logicalcpu) --target protobuf-cpp-full payload_extract"
+        BUILD_METHOD="-G Ninja"
+        MAKE_CMD="time -p cmake --build $OUT -j$(sysctl -n hw.logicalcpu) --target protobuf-cpp-full payload_extract"
     elif [[ $METHOD == "make" ]]; then
-        local MAKE_CMD="time -p make -C $OUT -j$(sysctl -n hw.logicalcpu)"
-    fi;
+        MAKE_CMD="time -p make -C $OUT -j$(sysctl -n hw.logicalcpu)"
+    fi
 
     local PROCESSOR=""
     [ ${ABI} == "x86_64" ] && PROCESSOR="x86_64"
@@ -49,10 +51,11 @@ build()
     rm -rf $OUT > /dev/null 2>&1
 
     local NINJA=`which ninja`
+    local METHOD=""
     if [[ -f $NINJA ]]; then
-        local METHOD="Ninja"
+        METHOD="Ninja"
     else
-        local METHOD="make"
+        METHOD="make"
     fi
 
     cmake_build "${TARGET}" "${METHOD}" "${ABI}" "${PLATFORM}"
