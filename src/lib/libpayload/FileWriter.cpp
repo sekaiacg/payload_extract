@@ -1,3 +1,6 @@
+#include <random>
+#include <thread>
+
 #include "payload/Decompress.h"
 #include "payload/FileWriter.h"
 #include "payload/HttpDownload.h"
@@ -5,6 +8,14 @@
 #include "payload/Utils.h"
 
 namespace skkk {
+	static std::random_device rd;
+	static std::mt19937 mt{rd()};
+	static std::uniform_int_distribution<uint32_t> randomWaitTime(1200, 3000);
+
+	static uint32_t getRdWaitTime() {
+		return randomWaitTime(mt);
+	}
+
 	int FileWriter::urlRead(uint8_t *buf, const FileOperation &operation) {
 		HttpDownload hd{operation.url, operation.sslVerification};
 		FileBuffer fb{buf, 0};
@@ -13,9 +24,8 @@ namespace skkk {
 		if (hd.downloadData(fb, operation.dataOffset, operation.dataLength)) {
 			return 0;
 		}
-		sleep(2);
+		std::this_thread::sleep_for(std::chrono::milliseconds(getRdWaitTime()));
 		goto retry;
-		return -1;
 	}
 
 	int FileWriter::commonWrite(const decompressPtr &decompress, int payloadBinFd, int outFd,
