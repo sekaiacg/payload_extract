@@ -62,7 +62,7 @@ build()
 
     local BUILD="$OUT/src/payload_extract"
     local PAYLOAD_EXTRACT_BIN="$BUILD/payload_extract"
-    local TARGE_DIR_NAME="payload_extract-${VERSION}-${TARGET}_${ABI}-$(TZ=UTC-8 date +%y%m%d%H%M)"
+    local TARGE_DIR_NAME="payload_extract-${VERSION}-$(TZ=UTC-8 date +%y%m%d)-${TARGET}_${ABI}"
     local TARGET_DIR_PATH="./target/${TARGET}_${ABI}/${TARGE_DIR_NAME}"
 
     if [ -f "$PAYLOAD_EXTRACT_BIN" ]; then
