@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <getopt.h>
+#include <iostream>
 #include <string>
 #include <sys/time.h>
 
@@ -13,7 +14,7 @@
 using namespace skkk;
 
 static void usage(const ExtractOperation &eo) {
-	char buf[1536]{};
+	char buf[1536] = {};
 	snprintf(buf, 1536,
 			 BROWN "usage: [options]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-h, --help" COLOR_NONE "           " BROWN "Display this help and exit" COLOR_NONE "\n"
@@ -25,14 +26,14 @@ static void usage(const ExtractOperation &eo) {
 			 "  " GREEN2_BOLD "-X, --extract=X" COLOR_NONE "      " BROWN "Extract the specified targets: [boot,odm,...]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-e" COLOR_NONE "                   " BROWN "Exclude mode, exclude specific targets" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-s" COLOR_NONE "                   " BROWN "Silent mode, Don't show progress" COLOR_NONE "\n"
-			 "  " GREEN2_BOLD "-T#" COLOR_NONE "                  " BROWN "[" GREEN2_BOLD "1-%u" COLOR_NONE BROWN "] Use # threads,  default: -T0, is " GREEN2_BOLD "%u" COLOR_NONE COLOR_NONE "\n"
+			 "  " GREEN2_BOLD "-T#" COLOR_NONE "                  " BROWN "[" GREEN2_BOLD "1-%u" COLOR_NONE BROWN "] Use # threads, default: -T0, is " GREEN2_BOLD "%u" COLOR_NONE COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-k" COLOR_NONE "                   " BROWN "Skip SSL verification" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-o, --outdir=X" COLOR_NONE "       " BROWN "Output dir" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-V, --version" COLOR_NONE "        " BROWN "Print the version info" COLOR_NONE "\n",
 			 eo.limitHardwareConcurrency,
 			 eo.hardwareConcurrency
 	);
-	fputs(buf, stderr);
+	std::cerr << buf << std::endl;
 }
 
 #ifndef PAYLOAD_EXTRACT_VERSION
@@ -183,11 +184,8 @@ static void printOperationTime(struct timeval *start, struct timeval *end) {
 	);
 }
 
-int main(const int argc, char *argv[]) {
-	int ret = RET_EXTRACT_DONE;
-	struct timeval start = {}, end = {};
-
 #if defined(_WIN32)
+static void handleWinTerminal() {
 	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
 	if (hStdin != INVALID_HANDLE_VALUE) {
 		DWORD mode;
@@ -198,21 +196,35 @@ int main(const int argc, char *argv[]) {
 			SetConsoleMode(hStdin, mode);
 		}
 	}
-	HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (hStdout != INVALID_HANDLE_VALUE) {
+}
+
+static void enableWinTerminalColor(DWORD handle) {
+	HANDLE nHandle = GetStdHandle(handle);
+	if (nHandle != INVALID_HANDLE_VALUE) {
 		DWORD mode;
-		if (GetConsoleMode(hStdout, &mode)) {
+		if (GetConsoleMode(nHandle, &mode)) {
 			mode |= ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-			SetConsoleMode(hStdout, mode);
+			SetConsoleMode(nHandle, mode);
 		}
 	}
+}
+#endif
+
+int main(const int argc, char *argv[]) {
+	int ret = RET_EXTRACT_DONE;
+	struct timeval start = {}, end = {};
+
+#if defined(_WIN32)
+	handleWinTerminal();
+	enableWinTerminalColor(STD_OUTPUT_HANDLE);
+	enableWinTerminalColor(STD_ERROR_HANDLE);
 #endif
 
 	setbuf(stdout, nullptr);
+	setbuf(stderr, nullptr);
 
 	// Start time
 	gettimeofday(&start, nullptr);
-
 
 	PayloadParse pp;
 	PayloadInfo *pi = nullptr;
