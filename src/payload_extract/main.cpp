@@ -39,9 +39,12 @@ static void usage(const ExtractOperation &eo) {
 #ifndef PAYLOAD_EXTRACT_VERSION
 #define PAYLOAD_EXTRACT_VERSION "v0.0.0"
 #endif
+#ifndef PAYLOAD_EXTRACT_BUILD_TIME
+#define PAYLOAD_EXTRACT_BUILD_TIME "-0"
+#endif
 
 static inline void print_version() {
-	printf("  " BROWN "payload_extract:" COLOR_NONE "     " RED2_BOLD PAYLOAD_EXTRACT_VERSION COLOR_NONE "\n");
+	printf("  " BROWN "payload_extract:" COLOR_NONE "     " RED2_BOLD PAYLOAD_EXTRACT_VERSION PAYLOAD_EXTRACT_BUILD_TIME COLOR_NONE "\n");
 	printf("  " BROWN "author:" COLOR_NONE "              " RED2_BOLD "skkk" COLOR_NONE "\n");
 }
 

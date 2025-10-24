@@ -23,6 +23,15 @@ else ()
     MESSAGE(WARNING "[payload_extract] version is v0.0.0")
 endif ()
 
+set(ENV{TZ} UTF-8)
+execute_process(
+    COMMAND date "+%y%m%d%H%M"
+    OUTPUT_VARIABLE PAYLOAD_EXTRACT_BUILD_TIME
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+target_compile_definitions(${TARGET} PRIVATE "-DPAYLOAD_EXTRACT_BUILD_TIME=\"-${PAYLOAD_EXTRACT_BUILD_TIME}\"")
+MESSAGE(STATUS "[payload_extract] build time is ${PAYLOAD_EXTRACT_BUILD_TIME}")
+
 if (CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_STRIP} -w "$<TARGET_FILE:${TARGET}>"
