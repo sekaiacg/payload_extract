@@ -63,6 +63,13 @@
 #define payload_pwrite pwrite
 #endif
 
+
+#if defined(__APPLE__)
+
+#define off64_t off_t
+
+#endif
+
 #if defined(_WIN32)
 
 inline static ssize_t pread(int fd, void *buf, size_t n, off64_t offset) {

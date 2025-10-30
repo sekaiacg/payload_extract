@@ -3,42 +3,52 @@
 
 namespace skkk {
 	int blobRead(int fd, void *buf, uint64_t offset, uint64_t len) {
-		int64_t read_count = 0;
+		int64_t ret = 0, read = 0;
 
 		if (!buf) {
 			return -EINVAL;
 		}
 
-		while (len > 0) {
-			read_count = payload_pread(fd, buf, len, offset);
-			if (read_count < 1) {
-				if (!read_count) {
-					memset(buf, 0, len);
-					return 0;
-				}
+		do {
+			ret = payload_pread(fd, buf, len, static_cast<off64_t>(offset));
+			if (ret <= 0) {
+				if (!ret)
+					break;
 				if (errno != EINTR) {
 					return -errno;
 				}
+				ret = 0;
 			}
-			offset += read_count;
-			len -= read_count;
-			buf = static_cast<char *>(buf) + read_count;
-		}
-		return 0;
+			buf = static_cast<char *>(buf) + ret;
+			offset += ret;
+			read += ret;
+		} while (read < len);
+
+		return read != len ? -EIO : 0;
 	}
 
 	int blobWrite(int fd, const void *buf, uint64_t offset, uint64_t len) {
+		int64_t ret = 0, written = 0;
+
 		if (!buf) {
 			return -EINVAL;
 		}
 
-		int ret = payload_pwrite(fd, buf, len, offset);
-		if (ret != len) {
-			if (ret < 0) {
-				return -errno;
+		do {
+			ret = payload_pwrite(fd, buf, len, static_cast<off64_t>(offset));
+			if (ret <= 0) {
+				if (!ret)
+					break;
+				if (errno != EINTR) {
+					return -errno;
+				}
+				ret = 0;
 			}
-			return -ERANGE;
-		}
-		return 0;
+			buf = static_cast<const char *>(buf) + ret;
+			offset += ret;
+			written += ret;
+		} while (written < len);
+
+		return written != len ? -EIO : 0;
 	}
 }
