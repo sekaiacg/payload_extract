@@ -23,7 +23,7 @@ namespace skkk {
 		const uint64_t fileSize = getZipFileSize();
 		if (fileSize < eocdSize) return false;
 
-		constexpr uint64_t maxEOCDSize = 2048;
+		constexpr uint64_t maxEOCDSize = 4096;
 		const uint64_t searchSize = std::min(fileSize - eocdSize, maxEOCDSize);
 		uint64_t eocdStartOffset = 0;
 		bool foundEOCD = false;
