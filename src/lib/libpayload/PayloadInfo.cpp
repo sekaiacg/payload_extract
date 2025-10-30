@@ -31,11 +31,10 @@ namespace skkk {
 		return blobRead(payloadFd, data, offset, len) == 0;
 	}
 
-
-	bool PayloadInfo::handleRawFile() {
+	bool PayloadInfo::handleZipFile() {
 		uint8_t header[128] = {};
 		if (!getPayloadData(header, 0, PLH_SIZE)) return false;
-		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return true;
+		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
 
 		ZipParse zip{path, payloadFd, false};
 		if (zip.parse()) {
@@ -46,14 +45,14 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::handleOffset() {
-		if (handleRawFile()) {
+		if (handleZipFile()) {
 			if (!files.empty()) {
 				const auto it =
 						std::ranges::find_if(files, [](const auto &zfi) { return zfi.name == "payload.bin"; });
 				if (it != files.end()) {
 					uint8_t buf[PLH_SIZE] = {};
 					if (!getPayloadData(buf, it->localHeaderOffset, PLH_SIZE)) {
-						LOGCE("Url: Failed to connect to the server, please try again later.");
+						LOGCE("ZIP: Failed to connect to the server, please try again later.");
 						return false;
 					}
 					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(buf);
@@ -63,13 +62,14 @@ namespace skkk {
 						payloadBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
 						return true;
 					}
-					LOGCE("File: payload.bin format error!");
+					LOGCE("ZIP: payload.bin format error!");
 					return false;
 				}
+				LOGCE("ZIP: payload.bin not found!");
+				return false;
 			}
 		}
-		LOGCE("File: payload.bin not found!");
-		return false;
+		return true;
 	}
 
 	bool PayloadInfo::parseHeader() {

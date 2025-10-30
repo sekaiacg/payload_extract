@@ -19,7 +19,7 @@ namespace skkk {
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
-				LOGCD("Url: download failed, retry: %d", retryCount);
+				LOGCD("URL: download failed, retry: %d", retryCount);
 				goto retry;
 			}
 		}
@@ -34,34 +34,34 @@ namespace skkk {
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
-				LOGCD("Url: download failed, retry: %d", retryCount);
+				LOGCD("URL: download failed, retry: %d", retryCount);
 				goto retry;
 			}
 		}
 		return ret;
 	}
 
-	bool UrlPayloadInfo::handleRawFile() {
+	bool UrlPayloadInfo::handleZipFile() {
 		uint8_t header[128] = {};
 		FileBuffer fb{header, 0};
-		if (!downloadData(fb, 0, ZLP_LOCAL_FILE_HEADER_SIZE)) {
-			LOGCE("Url: Failed to connect to the server, please try again later.");
+		if (!downloadData(fb, 0, PLH_SIZE)) {
+			LOGCE("URL: Failed to connect to the server, please try again later.");
 			return false;
 		}
+		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
+
 		if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
 			ZipParse zip(path, true, sslVerification);
 			if (zip.parse()) {
 				files = std::move(zip.files);
 				return true;
 			}
-		} else {
-			LOGCE("Url: It is not ZIP format.");
 		}
 		return false;
 	}
 
 	bool UrlPayloadInfo::handleOffset() {
-		if (handleRawFile()) {
+		if (handleZipFile()) {
 			if (!files.empty()) {
 				const auto it =
 						std::ranges::find_if(files, [](const auto &zfi) { return zfi.name == "payload.bin"; });
@@ -70,7 +70,7 @@ namespace skkk {
 					auto header = reinterpret_cast<uint8_t *>(&buf);
 					FileBuffer fb{header, 0};
 					if (!downloadData(fb, it->localHeaderOffset, PLH_SIZE)) {
-						LOGCE("Url: Failed to connect to the server, please try again later.");
+						LOGCE("URL: Failed to connect to the server, please try again later.");
 						return false;
 					}
 					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(header);
@@ -80,13 +80,14 @@ namespace skkk {
 						payloadBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
 						return true;
 					}
-					LOGCE("File: payload.bin format error!");
+					LOGCE("URL: payload.bin format error!");
 					return false;
 				}
+				LOGCE("URL: payload.bin not found!");
+				return false;
 			}
 		}
-		LOGCE("File: payload.bin not found!");
-		return false;
+		return true;
 	}
 
 	bool UrlPayloadInfo::parseHeader() {

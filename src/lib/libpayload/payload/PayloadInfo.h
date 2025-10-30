@@ -43,7 +43,7 @@ namespace skkk {
 
 			bool getPayloadData(uint8_t *data, uint64_t offset, uint64_t len) const;
 
-			virtual bool handleRawFile();
+			virtual bool handleZipFile();
 
 			virtual bool handleOffset();
 
@@ -86,7 +86,7 @@ namespace skkk {
 
 			bool downloadData(FileBuffer &fb, uint64_t offset, uint64_t len) const;
 
-			bool handleRawFile() override;
+			bool handleZipFile() override;
 
 			bool handleOffset() override;
 
