@@ -4,12 +4,12 @@ set(TARGET_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(TARGET_CFLAGS)
 
-set(liberofs_function_list
+set(libpayload_function_list
     "ftruncate64"
 )
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
-    list(APPEND liberofs_function_list
+    list(APPEND libpayload_function_list
         "fallocate"
         "fallocate64"
         "lseek64"
