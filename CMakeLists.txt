@@ -1,16 +1,18 @@
-cmake_minimum_required(VERSION 3.26...4.0.2)
+cmake_minimum_required(VERSION 3.26...4.1.2)
 include(cmake/check.cmake)
 project(payload_extract LANGUAGES C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
+option(ENABLE_HTTP_CPR "Enable cpr http downoad util. default: ON" ON)
 option(ENABLE_FULL_LTO "Enable full lto. default: OFF" OFF)
+
 
 # File options
 add_definitions(

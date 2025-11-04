@@ -1,12 +1,23 @@
+#include <brotli/decode.h>
+#include <bsdiff/bspatch.h>
 #include <bzlib.h>
 #include <lzma.h>
 #include <zstd.h>
 
-#include "payload/Decompress.h"
-#include "payload/PayloadFileInfo.h"
+#include "Decompress.h"
 
 namespace skkk {
-	int Decompress::bzipDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t &destSize) {
+	int Decompress::brotliDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t destSize) {
+		size_t dstSize = destSize;
+		BrotliDecoderResult bret = BrotliDecoderDecompress(srcSize, static_cast<const uint8_t *>(src),
+		                                                   &dstSize, static_cast<uint8_t *>(destBuf));
+		if (bret == BROTLI_DECODER_RESULT_SUCCESS) {
+			return 0;
+		}
+		return -EBADMSG;
+	}
+
+	int Decompress::bzipDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t destSize) {
 		int ret = 0;
 		bz_stream strm = {};
 		int err = BZ2_bzDecompressInit(&strm, 0, 0);
@@ -23,7 +34,7 @@ namespace skkk {
 			ret = -EBADMSG;
 			goto out_bzip_end;
 		}
-		destSize = strm.total_out_lo32;
+		// destSize = strm.total_out_lo32;
 
 	out_bzip_end:
 		BZ2_bzDecompressEnd(&strm);
@@ -31,7 +42,7 @@ namespace skkk {
 		return ret;
 	}
 
-	int Decompress::xzDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t &destSize) {
+	int Decompress::xzDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t destSize) {
 		int ret = 0;
 		lzma_stream strm = LZMA_STREAM_INIT;
 		lzma_ret err = lzma_stream_decoder(&strm, MaxDictSize, LZMA_CONCATENATED);
@@ -56,7 +67,7 @@ namespace skkk {
 		return ret;
 	}
 
-	int Decompress::zstdDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t &destSize) {
+	int Decompress::zstdDecompress(const void *src, uint64_t srcSize, void *destBuf, uint64_t destSize) {
 		int ret = 0;
 		ret = ZSTD_decompress(destBuf, destSize, src, srcSize);
 		if (ZSTD_isError(ret)) {

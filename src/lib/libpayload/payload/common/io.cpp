@@ -1,16 +1,16 @@
-#include "payload/defs.h"
-#include "payload/io.h"
+#include "defs.h"
+#include "io.h"
 
 namespace skkk {
-	int blobRead(int fd, void *buf, uint64_t offset, uint64_t len) {
+	int blobRead(int fd, void *data, uint64_t pos, uint64_t len) {
 		int64_t ret = 0, read = 0;
 
-		if (!buf) {
+		if (!data) {
 			return -EINVAL;
 		}
 
 		do {
-			ret = payload_pread(fd, buf, len, static_cast<off64_t>(offset));
+			ret = payload_pread(fd, data, len, static_cast<off64_t>(pos));
 			if (ret <= 0) {
 				if (!ret)
 					break;
@@ -19,23 +19,23 @@ namespace skkk {
 				}
 				ret = 0;
 			}
-			buf = static_cast<char *>(buf) + ret;
-			offset += ret;
+			data = static_cast<char *>(data) + ret;
+			pos += ret;
 			read += ret;
 		} while (read < len);
 
 		return read != len ? -EIO : 0;
 	}
 
-	int blobWrite(int fd, const void *buf, uint64_t offset, uint64_t len) {
+	int blobWrite(int fd, const void *data, uint64_t pos, uint64_t len) {
 		int64_t ret = 0, written = 0;
 
-		if (!buf) {
+		if (!data) {
 			return -EINVAL;
 		}
 
 		do {
-			ret = payload_pwrite(fd, buf, len, static_cast<off64_t>(offset));
+			ret = payload_pwrite(fd, data, len, static_cast<off64_t>(pos));
 			if (ret <= 0) {
 				if (!ret)
 					break;
@@ -44,8 +44,8 @@ namespace skkk {
 				}
 				ret = 0;
 			}
-			buf = static_cast<const char *>(buf) + ret;
-			offset += ret;
+			data = static_cast<const char *>(data) + ret;
+			pos += ret;
 			written += ret;
 		} while (written < len);
 

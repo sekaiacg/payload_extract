@@ -2,9 +2,10 @@
 #define PAYLOAD_EXTRACT_UTILS_H
 
 #include <algorithm>
+#include <cinttypes>
+#include <climits>
 #include <cstring>
 #include <fcntl.h>
-#include <limits.h>
 #include <string>
 #include <string_view>
 #include <unistd.h>
@@ -45,7 +46,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 #ifndef _WIN32
 		if (str[i] == '/' && i > 0) {
 #else
-		if (str[i] == '/' && i > 0 && str[i - 1] != ':') {
+			if (str[i] == '/' && i > 0 && str[i - 1] != ':') {
 #endif
 			str[i] = '\0';
 			if (access(str, F_OK) != 0) {
@@ -131,6 +132,12 @@ static void strReplaceAll(std::string &str, const std::string &oldValue, const s
 static void handleWinFilePath(std::string &path) {
 	strReplaceAll(path, "\\", "/");
 	strReplaceAll(path, "./", ".\\/");
+}
+
+static void handleWinPath(std::string &path) {
+#if defined(_WIN32)
+	handleWinFilePath(path);
+#endif
 }
 
 #endif  // PAYLOAD_EXTRACT_UTILS_H end

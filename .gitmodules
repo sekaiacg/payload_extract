@@ -10,6 +10,14 @@
 	path = src/lib/protobuf
 	url = https://android.googlesource.com/platform/external/protobuf
 	branch = main
+[submodule "src/lib/brotli"]
+	path = src/lib/brotli
+	url = https://github.com/google/brotli.git
+	branch = master
+[submodule "src/lib/bsdiff"]
+	path = src/lib/bsdiff
+	url = https://android.googlesource.com/platform/external/bsdiff
+	branch = main
 [submodule "src/lib/xz"]
 	path = src/lib/xz
 	url = https://github.com/tukaani-project/xz.git

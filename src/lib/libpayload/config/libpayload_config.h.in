@@ -7,6 +7,7 @@
 // Functions
 #cmakedefine HAVE_FALLOCATE 1
 #cmakedefine HAVE_FALLOCATE64 1
+#cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_FTRUNCATE64 1
 #cmakedefine HAVE_LSEEK64 1
 #cmakedefine HAVE_PREAD64 1

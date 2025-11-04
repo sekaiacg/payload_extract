@@ -1,25 +1,31 @@
-#ifndef PAYLOAD_EXTRACT_PAYLOAD_HEADER_H
-#define PAYLOAD_EXTRACT_PAYLOAD_HEADER_H
+#ifndef PAYLOAD_EXTRACT_PAYLOADHEADER_H
+#define PAYLOAD_EXTRACT_PAYLOADHEADER_H
 
-#include <cstdint>
+#include <cinttypes>
 #include <string>
 
 #include "LogBase.h"
 
 namespace skkk {
+	/**
+	 * payload header size
+	 */
+	static constexpr uint32_t kMaxPayloadHeaderSize = 24;
+	static constexpr char PAYLOAD_MAGIC[] = "CrAU";
+	static constexpr uint32_t PAYLOAD_MAGIC_SIZE = 4;
+	static constexpr uint32_t PLH_SIZE = 30;
+	static constexpr uint8_t ZLP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
+	static constexpr uint32_t ZLP_LOCAL_FILE_HEADER_SIZE = 4;
+
+	enum file_format_version {
+		VERSION_0,
+		VERSION_1,
+		VERSION_2,
+	};
+
 	class PayloadHeader {
-#define kMaxPayloadHeaderSize 24
-#define PAYLOAD_MAGIC "CrAU"
-#define PAYLOAD_MAGIC_SIZE 4
-
-		enum file_format_version {
-			VERSION_0,
-			VERSION_1,
-			VERSION_2,
-		};
-
 		public:
-			uint64_t payloadBinOffset = 0;
+			uint64_t inPayloadBinOffset = 0;
 			char magic[4] = {};
 			uint64_t fileFormatVersion = VERSION_0; // payload major version
 			uint64_t manifestSize = 0; // Size of protobuf DeltaArchiveManifest
@@ -50,8 +56,7 @@ namespace skkk {
 				return fileFormatVersion >= VERSION_2;
 			}
 
-
-			bool parseHeader(const uint8_t *buf);
+			bool parseHeader(const uint8_t *data);
 
 			void printHeaderInfo() {
 				LOGCI("magic: %.4s", magic);
@@ -62,4 +67,4 @@ namespace skkk {
 	};
 }
 
-#endif //PAYLOAD_EXTRACT_PAYLOAD_HEADER_H
+#endif //PAYLOAD_EXTRACT_PAYLOADHEADER_H

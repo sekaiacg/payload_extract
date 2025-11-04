@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <memory>
 #include <vector>
 
 #include "payload/HttpDownload.h"
@@ -98,10 +99,10 @@ namespace skkk {
 		public:
 			ZipFileItem(const std::string &name, const uint64_t compressedSize, const uint64_t uncompressedSize,
 			            const uint64_t localHeaderOffset, const uint16_t compression,
-			            const uint32_t crc32): name(name), compressedSize(compressedSize),
-			                                   uncompressedSize(uncompressedSize),
-			                                   localHeaderOffset(localHeaderOffset),
-			                                   offset(0), compression(compression), crc32(crc32) {
+			            const uint32_t crc32) : name(name), compressedSize(compressedSize),
+			                                    uncompressedSize(uncompressedSize),
+			                                    localHeaderOffset(localHeaderOffset),
+			                                    offset(0), compression(compression), crc32(crc32) {
 			}
 
 			ZipFileItem(const ZipFileItem &zfi) : name(zfi.name),
@@ -125,21 +126,21 @@ namespace skkk {
 			}
 	};
 
-	class ZipParse {
+	class ZipParser {
 		public:
+			std::shared_ptr<HttpDownload> httpDownload;
 			std::string path;
 			int inFileFd;
 			bool isUrl;
 			std::vector<ZipFileItem> files;
-			HttpDownload httpDownload;
 
 		public:
-			explicit ZipParse(const std::string &path, int inFileFd, bool isUrl): path(path), inFileFd(inFileFd),
-				isUrl(isUrl), httpDownload("", false) {
+			explicit ZipParser(const std::string &path, int inFileFd) : path(path),
+			                                                            inFileFd(inFileFd), isUrl(false) {
 			}
 
-			explicit ZipParse(const std::string &path, bool isUrl, bool sslVerification): path(path), inFileFd(0),
-				isUrl(isUrl), httpDownload(path, sslVerification) {
+			explicit ZipParser(const std::shared_ptr<HttpDownload> &httpDownload) : httpDownload(httpDownload),
+				isUrl(true) {
 			}
 
 			bool getFileData(uint8_t *data, uint64_t offset, uint64_t len) const;

@@ -29,7 +29,7 @@ cmake_build()
             -DCMAKE_BUILD_TYPE="Release" \
             -DCMAKE_C_COMPILER_TARGET="${ABI}-apple-darwin" \
             -DCMAKE_CXX_COMPILER_TARGET="${ABI}-apple-darwin" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="13.3" \
             -DCMAKE_C_COMPILER_LAUNCHER="ccache" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" \
             -DCMAKE_C_COMPILER="clang" \

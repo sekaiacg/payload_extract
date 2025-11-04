@@ -1,46 +1,51 @@
-#include <cinttypes>
-#include <iostream>
+#include <payload/LogBase.h>
+#include <payload/Utils.h>
 
+#include <payload/HttpDownload.h>
+
+#if defined(ENABLE_HTTP_CPR)
+#include "CprHttpDownload.h"
+#endif
 #include "ExtractOperation.h"
-#include "payload/LogBase.h"
-#include "payload/threadpool.h"
-#include "payload/Utils.h"
 
 namespace skkk {
-	void ExtractOperation::setFilePath(const char *path) {
-		filePath = path;
-		strTrim(filePath);
-#if defined(_WIN32)
-		handleWinFilePath(filePath);
-#endif
-		LOGCD("config: filePath=%s", filePath.c_str());
+	int ExtractOperation::initOldDir() const {
+		if (!dirExists(oldDir)) {
+			LOGCE("oldDir does not exist: '%s'", oldDir.c_str());
+			return RET_EXTRACT_INIT_FAIL;
+		}
+		return RET_EXTRACT_DONE;
 	}
 
-	const std::string &ExtractOperation::getFilePath() const { return filePath; }
-
-	void ExtractOperation::setOutDir(const char *path) { outDir = path; }
-
-	const std::string &ExtractOperation::getOutDir() const { return outDir; }
-
 	int ExtractOperation::initOutDir() {
-		int rc = RET_EXTRACT_DONE;
-		strTrim(outDir);
 		if (outDir.empty()) {
-			outDir = "./dump";
+			if (isIncremental) {
+				outDir = oldDir + "/patched";
+			} else {
+				outDir = "./dump";
+			}
 		} else {
+			if (oldDir == outDir) {
+				LOGE("oldDir and outDir cannot be the same!");
+			}
 			if (outDir.size() > 1 &&
 			    (outDir.at(outDir.size() - 1) == '/' ||
 			     outDir.at(outDir.size() - 1) == '\\'))
 				outDir.pop_back();
-			if (outDir.size() >= PATH_MAX) {
-				LOGE("outDir directory name too long!");
-				return RET_EXTRACT_OUTDIR_ROOT;
-			}
 		}
-#if defined( _WIN32)
-		handleWinFilePath(filePath);
-#endif
-		return rc;
+		return RET_EXTRACT_DONE;
+	}
+
+	int ExtractOperation::initTargetNames() {
+		targets.reserve(32);
+		splitString(targets, targetName, ",", true);
+		return targets.empty() ? RET_EXTRACT_INIT_FAIL : RET_EXTRACT_DONE;
+	}
+
+	void ExtractOperation::handleUrl() {
+		isUrl = startsWithIgnoreCase(payloadPath, "https://") ||
+		        startsWithIgnoreCase(payloadPath, "http://");
+		payloadType = isUrl ? PAYLOAD_TYPE_URL : PAYLOAD_TYPE_BIN;
 	}
 
 	int ExtractOperation::createExtractOutDir() const {
@@ -54,72 +59,15 @@ namespace skkk {
 		return rc;
 	}
 
-	void ExtractOperation::initPayloadInfo(const PayloadInfo &pbi) {
-		const PayloadHeader &pHeader = pbi.payloadHeader;
-		partitionSize = pHeader.partitionSize;
-		minorVersion = pHeader.minorVersion;
-		securityPatchLevel = pHeader.securityPatchLevel;
-	}
-
-	int ExtractOperation::initAllFileNode(const PayloadInfo &pbi) {
-		const FileInfoMap &fileMap = pbi.payloadManifest.payloadFileInfo.payloadFileMap;
-		fileNodes.reserve(fileMap.size());
-		for (const auto &[name, info]: fileMap) {
-			fileNodes.emplace_back(pbi, info, outDir);
-		}
-		return !fileNodes.empty() ? RET_EXTRACT_DONE : RET_EXTRACT_INIT_NODE_FAIL;
-	}
-
-	int ExtractOperation::initFileNodeByTarget(const PayloadInfo &pbi) {
-#if defined(_WIN32)
-		handleWinFilePath(targetNames);
-		handleWinFilePath(targetConfigPath);
+	std::shared_ptr<HttpDownload> ExtractOperation::getHttpDownloadImpl() {
+		std::unique_lock lock(_mutex);
+		if (isUrl && !httpDownload) {
+#if defined(ENABLE_HTTP_CPR)
+			httpDownload = std::make_shared<CprHttpDownload>(payloadPath, sslVerification);
+#else
+			httpDownload = std::make_shared<HttpDownload>(payloadPath, sslVerification);
 #endif
-		std::vector<std::string> targets;
-		targets.reserve(partitionSize);
-		fileNodes.reserve(partitionSize);
-		splitString(targets, targetNames, ",", true);
-
-		const FileInfoMap &fileMap = pbi.payloadManifest.payloadFileInfo.payloadFileMap;
-		if (excludeTargets) {
-			for (const auto &[name, file]: fileMap) {
-				if (std::ranges::find(targets, name) == targets.end())
-					fileNodes.emplace_back(pbi, file, outDir);
-			}
-		} else {
-			for (const auto &target: targets) {
-				const auto &file = fileMap.find(target);
-				if (file != fileMap.end()) {
-					fileNodes.emplace_back(pbi, file->second, outDir);
-				}
-			}
 		}
-		return !fileNodes.empty() ? RET_EXTRACT_DONE : RET_EXTRACT_INIT_NODE_FAIL;
-	}
-
-	void ExtractOperation::printFiles() const {
-		printf("partitionSize: %-3" PRId32 " minorVersion: %-2" PRIu32 " securityPatchLevel: %s\n",
-		       partitionSize, minorVersion, securityPatchLevel.c_str());
-		for (const auto &fileNode: fileNodes) {
-			fileNode.printInfo();
-		}
-	}
-
-	void ExtractOperation::extractFiles() {
-		if (!fileNodes.empty()) {
-			LOGCI(GREEN2_BOLD "Using " COLOR_NONE RED2 "%" PRIu32 COLOR_NONE GREEN2_BOLD " threads" COLOR_NONE,
-			      threadNum);
-			if (threadNum == 1) {
-				for (auto &fileNode: fileNodes) {
-					fileNode.writeFile(isSilent);
-					fileNode.writeExceptionFileIfExists();
-				}
-			} else {
-				for (auto &fileNode: fileNodes) {
-					fileNode.writeFileWithMultiThread(threadNum, isSilent);
-					fileNode.writeExceptionFileIfExists();
-				}
-			}
-		}
+		return httpDownload;
 	}
 }

@@ -1,24 +1,24 @@
-#include "payload/io.h"
+#include "common/io.h"
 #include "payload/Utils.h"
-#include "payload/ZipParse.h"
+#include "payload/ZipParser.h"
 
 namespace skkk {
-	bool ZipParse::getFileData(uint8_t *data, uint64_t offset, uint64_t len) const {
+	bool ZipParser::getFileData(uint8_t *data, uint64_t offset, uint64_t len) const {
 		if (isUrl) {
 			FileBuffer fb{data, 0};
-			return httpDownload.downloadData(fb, offset, len);
+			return httpDownload->download(fb, offset, len);
 		}
 		return blobRead(inFileFd, data, offset, len) == 0;
 	}
 
-	uint64_t ZipParse::getZipFileSize() const {
+	uint64_t ZipParser::getZipFileSize() const {
 		if (isUrl) {
-			return httpDownload.getFileSize();
+			return httpDownload->getDlFileSize();
 		}
 		return getFileSize(path);
 	}
 
-	bool ZipParse::parse() {
+	bool ZipParser::parse() {
 		constexpr uint64_t eocdSize = sizeof(ZipEOCD);
 		const uint64_t fileSize = getZipFileSize();
 		if (fileSize < eocdSize) return false;
@@ -125,7 +125,6 @@ namespace skkk {
 			files.emplace_back(filename, uncompressedSize, compressedSize,
 			                   localHeaderOffset, header->compressionMethod, header->crc32);
 		}
-
 		return true;
 	}
 }

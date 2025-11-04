@@ -1,13 +1,11 @@
-#include <cstring>
-#include <curl/curl.h>
+#include <payload/LogBase.h>
 
-#include "payload/HttpDownload.h"
-#include "payload/HttpUtils.h"
-#include "payload/LogBase.h"
+#include "CprHttpDownload.h"
+#include "HttpUtils.h"
 
 namespace skkk {
-	HttpDownload::HttpDownload(const std::string &url, bool sslVerification) {
-		this->url = url;
+	CprHttpDownload::CprHttpDownload(const std::string &url, bool sslVerification) {
+		this->cprUrl = url;
 		this->sslVerification = sslVerification;
 		cprHeader = cpr::Header{
 			{"Connection", "close"},
@@ -19,7 +17,7 @@ namespace skkk {
 		initCA();
 	}
 
-	void HttpDownload::initCA() {
+	void CprHttpDownload::initCA() {
 #if defined(__linux__)
 		if (CA_BUNDLE.empty()) {
 			CA_BUNDLE = findCaBundlePath();
@@ -30,13 +28,13 @@ namespace skkk {
 #endif
 	}
 
-	void HttpDownload::initSession(cpr::Session &session) const {
-		session.SetUrl(url);
+	void CprHttpDownload::initSession(cpr::Session &session) const {
+		session.SetUrl(cprUrl);
 		session.SetHeader(cprHeader);
 		session.SetConnectTimeout(connectTimeout);
 		session.SetLowSpeed(lowSpeed);
 		session.SetAcceptEncoding(cpr::AcceptEncoding{"disabled"});
-		if (startsWithIgnoreCase(url.c_str(), "https")) {
+		if (startsWithIgnoreCase(cprUrl.c_str(), "https")) {
 			session.SetVerifySsl(sslVerification);
 			if (sslVerification) {
 				CURL *curl = session.GetCurlHolder()->handle;
@@ -59,45 +57,29 @@ namespace skkk {
 		}
 	}
 
-	bool writeDataStr(const std::string_view &data, intptr_t userdata) {
-		// NOLINTNEXTLINE (cppcoreguidelines-pro-type-reinterpret-cast)
+	uint64_t CprHttpDownload::getDlFileSize() const {
+		cpr::Session session;
+		initSession(session);
+		uint64_t fileSize = session.GetDownloadFileLength();
+		return fileSize > 0 ? fileSize : 0;
+	}
+
+	static bool writeDataStr(const std::string_view &data, intptr_t userdata) {
 		auto *dst = reinterpret_cast<std::string *>(userdata);
 		*dst += data;
 		return true;
 	}
 
-	uint64_t HttpDownload::getFileSize() const {
+	bool CprHttpDownload::download(std::string &data, uint64_t offset, uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
-		session.SetRange(cpr::Range{0, 1});
-		char data[32] = {};
-		cpr::Response r = session.Download(cpr::WriteCallback{
+		session.SetRange(cpr::Range{offset, offset + length - 1});
+		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataStr,
 			reinterpret_cast<intptr_t>(&data)
 		});
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
-		    r.downloaded_bytes == 2) {
-			const std::string &cr = r.header["Content-Range"];
-			if (!cr.empty()) {
-				std::string sizeStr = cr.substr(cr.rfind('/') + 1, cr.length());
-				return std::stoll(sizeStr);
-			}
-		}
-		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
-		return 0;
-	}
-
-	bool HttpDownload::downloadData(std::string &data, uint64_t targetOffset, uint64_t len) const {
-		cpr::Session session;
-		initSession(session);
-		session.SetRange(cpr::Range{targetOffset, targetOffset + len - 1});
-
-		cpr::Response r = session.Download(cpr::WriteCallback{
-			writeDataStr,
-			reinterpret_cast<intptr_t>(&data)
-		});
-		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
-		    r.downloaded_bytes == len) {
+		    r.downloaded_bytes == length) {
 			return true;
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
@@ -106,44 +88,44 @@ namespace skkk {
 
 	static bool writeDataFb(const std::string_view &data, intptr_t userdata) {
 		auto *f = reinterpret_cast<FileBuffer *>(userdata);
-		memcpy(f->buf + f->len, data.data(), data.size());
-		f->len += data.size();
+		memcpy(f->data + f->length, data.data(), data.size());
+		f->length += data.size();
 		return true;
 	}
 
-	bool HttpDownload::downloadData(FileBuffer &fb, uint64_t dataOffset, uint64_t targetOffset,
-	                                uint64_t len) const {
+	bool CprHttpDownload::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
-		session.SetRange(cpr::Range{targetOffset, targetOffset + len - 1});
-
-		fb.buf += dataOffset;
-		cpr::Response r = session.Download(cpr::WriteCallback{
+		session.SetRange(cpr::Range{offset, offset + length - 1});
+		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataFb,
 			reinterpret_cast<intptr_t>(&fb)
 		});
-		fb.buf -= dataOffset;
-		fb.len = 0;
+		fb.length = 0;
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
-		    r.downloaded_bytes == len) {
+		    r.downloaded_bytes == length) {
 			return true;
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
 		return false;
 	}
 
-	bool HttpDownload::downloadData(FileBuffer &fb, uint64_t targetOffset, uint64_t len) const {
+	bool CprHttpDownload::download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset, uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
-		session.SetRange(cpr::Range{targetOffset, targetOffset + len - 1});
-		cpr::Response r = session.Download(cpr::WriteCallback{
+		session.SetRange(cpr::Range{offset, offset + length - 1});
+
+		uint8_t *backDataPtr = fb.data;
+		fb.data += fbDataOffset;
+		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataFb,
 			reinterpret_cast<intptr_t>(&fb)
-
 		});
-		fb.len = 0;
+		fb.data = backDataPtr;
+		fb.length = 0;
+
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
-		    r.downloaded_bytes == len) {
+		    r.downloaded_bytes == length) {
 			return true;
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());

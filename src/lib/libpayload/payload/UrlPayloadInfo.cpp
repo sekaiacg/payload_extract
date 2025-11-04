@@ -1,21 +1,19 @@
-#include <algorithm>
-
-#include "payload/endian.h"
+#include "common/io.h"
+#include "../include/payload/ZipParser.h"
 #include "payload/HttpDownload.h"
-#include "payload/io.h"
+#include "payload/LogBase.h"
 #include "payload/PayloadInfo.h"
-#include "payload/ZipParse.h"
 
 namespace skkk {
 	bool UrlPayloadInfo::initPayloadFile() {
 		return true;
 	}
 
-	bool UrlPayloadInfo::downloadData(std::string &data, uint64_t offset, uint64_t len) const {
+	bool UrlPayloadInfo::download(std::string &data, uint64_t pos, uint64_t len) const {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload.downloadData(data, offset, len);
+		ret = httpDownload->download(data, pos, len);
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
@@ -26,11 +24,11 @@ namespace skkk {
 		return ret;
 	}
 
-	bool UrlPayloadInfo::downloadData(FileBuffer &fb, uint64_t offset, uint64_t len) const {
+	bool UrlPayloadInfo::download(FileBuffer &fb, uint64_t pos, uint64_t len) const {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload.downloadData(fb, offset, len);
+		ret = httpDownload->download(fb, pos, len);
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
@@ -44,16 +42,16 @@ namespace skkk {
 	bool UrlPayloadInfo::handleZipFile() {
 		uint8_t header[128] = {};
 		FileBuffer fb{header, 0};
-		if (!downloadData(fb, 0, PLH_SIZE)) {
+		if (!download(fb, 0, PLH_SIZE)) {
 			LOGCE("URL: Failed to connect to the server, please try again later.");
 			return false;
 		}
 		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
 
 		if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
-			ZipParse zip(path, true, sslVerification);
+			ZipParser zip{extractConfig.httpDownload};
 			if (zip.parse()) {
-				files = std::move(zip.files);
+				zipFiles = std::move(zip.files);
 				return true;
 			}
 		}
@@ -62,14 +60,14 @@ namespace skkk {
 
 	bool UrlPayloadInfo::handleOffset() {
 		if (handleZipFile()) {
-			if (!files.empty()) {
+			if (!zipFiles.empty()) {
 				const auto it =
-						std::ranges::find_if(files, [](const auto &zfi) { return zfi.name == "payload.bin"; });
-				if (it != files.end()) {
-					uint8_t buf[PLH_SIZE] = {};
-					auto header = reinterpret_cast<uint8_t *>(&buf);
+						std::ranges::find_if(zipFiles, [](const auto &zfi) { return zfi.name == "payload.bin"; });
+				if (it != zipFiles.end()) {
+					uint8_t data[PLH_SIZE] = {};
+					auto header = reinterpret_cast<uint8_t *>(&data);
 					FileBuffer fb{header, 0};
-					if (!downloadData(fb, it->localHeaderOffset, PLH_SIZE)) {
+					if (!download(fb, it->localHeaderOffset, PLH_SIZE)) {
 						LOGCE("URL: Failed to connect to the server, please try again later.");
 						return false;
 					}
@@ -77,7 +75,7 @@ namespace skkk {
 					const auto filenameSize = zlh->filenameLength;
 					const auto extraFieldSize = zlh->extraFieldLength;
 					if (it->compression == 0) {
-						payloadBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
+						fileBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
 						return true;
 					}
 					LOGCE("URL: payload.bin format error!");
@@ -91,23 +89,22 @@ namespace skkk {
 	}
 
 	bool UrlPayloadInfo::parseHeader() {
-		std::string buf;
-		if (downloadData(buf, payloadBaseOffset, kMaxPayloadHeaderSize)) {
-			return payloadHeader.parseHeader(reinterpret_cast<uint8_t *>(buf.data()));
+		std::string data;
+		if (download(data, fileBaseOffset, kMaxPayloadHeaderSize)) {
+			return pHeader.parseHeader(reinterpret_cast<uint8_t *>(data.data()));
 		}
 		return false;
 	}
 
 	bool UrlPayloadInfo::readManifestData() {
-		auto &payloadBinOffset = payloadHeader.payloadBinOffset;
-		const auto manifestSize = payloadHeader.manifestSize;
+		auto &payloadBinOffset = pHeader.inPayloadBinOffset;
+		const auto manifestSize = pHeader.manifestSize;
 		auto *manifest = static_cast<uint8_t *>(malloc(manifestSize));
 		if (manifest) {
-			memset(manifest, 0, manifestSize);
 			FileBuffer fb = {manifest, 0};
-			if (downloadData(fb, payloadBaseOffset + payloadBinOffset,
-			                 manifestSize)) {
-				payloadHeader.manifest = manifest;
+			if (download(fb, fileBaseOffset + payloadBinOffset,
+			             manifestSize)) {
+				pHeader.manifest = manifest;
 				payloadBinOffset += manifestSize;
 				return true;
 			}
@@ -116,9 +113,8 @@ namespace skkk {
 	}
 
 	bool UrlPayloadInfo::readMetadataSignatureMessage() {
-		PayloadHeader &pHeader = payloadHeader;
 		// Skip manifest signature message
-		payloadHeader.payloadBinOffset += pHeader.metadataSignatureSize;
+		pHeader.inPayloadBinOffset += pHeader.metadataSignatureSize;
 		return true;
 	}
 }

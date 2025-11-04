@@ -1,0 +1,31 @@
+--- file.cc	2025-11-04 18:00:19.275819279 +0800
++++ file1.cc	2025-11-04 17:42:53.258193339 +0800
+@@ -10,14 +10,26 @@
+ #include <linux/fs.h>
+ #endif  // __linux__
+ #include <string.h>
++#ifndef _WIN32
+ #include <sys/ioctl.h>
++#endif
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
+-// TEMP_FAILURE_RETRY is defined by some versions of <unistd.h>.
++/*
++ * TEMP_FAILURE_RETRY is defined by some, but not all, versions of
++ * <unistd.h>. (Alas, it is not as standard as we'd hoped!) So, if it's
++ * not already defined, then define it here.
++ */
+ #ifndef TEMP_FAILURE_RETRY
+-#include <utils/Compat.h>
++/* Used to retry syscalls that can return EINTR. */
++#define TEMP_FAILURE_RETRY(exp) ({         \
++    typeof (exp) _rc;                      \
++    do {                                   \
++        _rc = (exp);                       \
++    } while (_rc == -1 && errno == EINTR); \
++    _rc; })
+ #endif
+ 
+ #include <algorithm>
