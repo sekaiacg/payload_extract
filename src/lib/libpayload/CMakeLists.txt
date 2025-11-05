@@ -29,13 +29,17 @@ configure_file(
 
 file(GLOB PAYLOAD_COMMON_SRCS "${TARGET_SRC_DIR}/common/*.cpp")
 file(GLOB PAYLOAD_DECOMPRESS_SRCS "${TARGET_SRC_DIR}/decompress/*.cpp")
-file(GLOB PAYLOAD_CPP_SRCS "${TARGET_SRC_DIR}/*.cpp")
 file(GLOB PAYLOAD_CC_SRCS "${TARGET_SRC_DIR}/*.cc")
+file(GLOB PAYLOAD_CPP_SRCS "${TARGET_SRC_DIR}/*.cpp")
+if (ENABLE_HTTP_CPR)
+    file(GLOB PAYLOAD_HTTP_SRCS "${TARGET_SRC_DIR}/httpDownloadImpl/*.cpp")
+endif ()
 set(PAYLOAD_SRCS
-    ${PAYLOAD_CPP_SRCS}
-    ${PAYLOAD_CC_SRCS}
     ${PAYLOAD_COMMON_SRCS}
     ${PAYLOAD_DECOMPRESS_SRCS}
+    ${PAYLOAD_HTTP_SRCS}
+    ${PAYLOAD_CC_SRCS}
+    ${PAYLOAD_CPP_SRCS}
 )
 
 add_library(${TARGET} STATIC ${PAYLOAD_SRCS})
@@ -44,6 +48,13 @@ target_include_directories(${TARGET} PRIVATE "${PROJECT_SOURCE_DIR}/src/lib/xz/s
 target_include_directories(${TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 set(COMMON_LINK_LIBS bz2_static bspatch_static liblzma libzstd protobuf-cpp-full)
+if (ENABLE_HTTP_CPR)
+    target_compile_definitions(${TARGET} PRIVATE "-DENABLE_HTTP_CPR")
+    list(APPEND COMMON_LINK_LIBS cpr::cpr)
+    if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
+        list(APPEND COMMON_LINK_LIBS mbedtls)
+    endif ()
+endif ()
 target_link_libraries(${TARGET} PUBLIC ${COMMON_LINK_LIBS})
 
 target_compile_options(${TARGET} PRIVATE

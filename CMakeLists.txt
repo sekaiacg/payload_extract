@@ -10,9 +10,9 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
-option(ENABLE_HTTP_CPR "Enable cpr http downoad util. default: ON" ON)
+option(ENABLE_HTTP_CPR "Enable cpr HTTP download implementation. default: ON" ON)
 option(ENABLE_FULL_LTO "Enable full lto. default: OFF" OFF)
-
+option(BUILD_PAYLOAD_EXTRACT "Whether to compile the payload_extract? default: ON" ON)
 
 # File options
 add_definitions(

@@ -46,4 +46,16 @@ namespace skkk {
 	void ExtractConfig::setTargets(const std::vector<std::string> &target) {
 		targets = target;
 	}
+
+	std::shared_ptr<HttpDownload> ExtractConfig::getHttpDownloadImpl() {
+		std::unique_lock lock(_mutex);
+		if (isUrl && !httpDownload) {
+#if defined(ENABLE_HTTP_CPR)
+			httpDownload = std::make_shared<CprHttpDownload>(payloadPath, sslVerification);
+#else
+			httpDownload = std::make_shared<HttpDownload>(payloadPath, sslVerification);
+#endif
+		}
+		return httpDownload;
+	}
 }

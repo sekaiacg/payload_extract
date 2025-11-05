@@ -2,11 +2,15 @@
 #define PAYLOAD_EXTRACT_EXTRACTCONFIG_H
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "HttpDownload.h"
+#if defined(ENABLE_HTTP_CPR)
+#include "httpDownloadImpl/CprHttpDownload.h"
+#endif
 #include "PayloadDefs.h"
 
 namespace skkk {
@@ -26,6 +30,8 @@ namespace skkk {
 	};
 
 	class ExtractConfig {
+		std::mutex _mutex;
+
 		protected:
 			std::string payloadPath;
 			std::string oldDir;
@@ -120,6 +126,8 @@ namespace skkk {
 			virtual const std::vector<std::string> &getTargets() const;
 
 			virtual void setTargets(const std::vector<std::string> &target);
+
+			virtual std::shared_ptr<HttpDownload> getHttpDownloadImpl();
 	};
 }
 

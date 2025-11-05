@@ -225,7 +225,8 @@ static void enableWinTerminalColor(DWORD handle) {
 
 int main(const int argc, char *argv[]) {
 	int ret = RET_EXTRACT_DONE;
-	timeval start = {}, end = {};
+	timeval start{}, end{};
+
 #if defined(_WIN32)
 	handleWinTerminal();
 	enableWinTerminalColor(STD_OUTPUT_HANDLE);
@@ -239,7 +240,6 @@ int main(const int argc, char *argv[]) {
 	gettimeofday(&start, nullptr);
 
 	// config
-	// TODO Provide an HTTP download interface; choose other implementations.
 	ExtractOperation eo{};
 	PayloadParser payloadParser;
 	std::shared_ptr<PartitionWriter> pw;

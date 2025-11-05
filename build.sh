@@ -8,14 +8,11 @@ cmake_build()
     local METHOD=$2
     local ABI=$3
 
-    local tls_backend=""
-    [[ "${TARGET}" == "Linux" || "${TARGET}" == "Android" ]] && tls_backend="mbedtls"
-
     local MAKE_CMD=""
     local BUILD_METHOD=""
     if [[ $METHOD == "Ninja" ]]; then
         BUILD_METHOD="-G Ninja"
-        MAKE_CMD="time -p cmake --build $OUT -j$(nproc) --target protobuf-cpp-full ${tls_backend} payload_extract"
+        MAKE_CMD="time -p cmake --build $OUT -j$(nproc) --target payload_extract"
     elif [[ $METHOD == "make" ]]; then
         MAKE_CMD="time -p make -C $OUT -j$(nproc)"
     fi

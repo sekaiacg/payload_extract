@@ -35,8 +35,6 @@ namespace skkk {
 			void handleUrl();
 
 			int createExtractOutDir() const;
-
-			std::shared_ptr<HttpDownload> getHttpDownloadImpl();
 	};
 }
 

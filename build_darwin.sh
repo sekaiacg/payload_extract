@@ -12,7 +12,7 @@ cmake_build()
     local BUILD_METHOD=""
     if [[ $METHOD == "Ninja" ]]; then
         BUILD_METHOD="-G Ninja"
-        MAKE_CMD="time -p cmake --build $OUT -j$(sysctl -n hw.logicalcpu) --target protobuf-cpp-full payload_extract"
+        MAKE_CMD="time -p cmake --build $OUT -j$(sysctl -n hw.logicalcpu) --target payload_extract"
     elif [[ $METHOD == "make" ]]; then
         MAKE_CMD="time -p make -C $OUT -j$(sysctl -n hw.logicalcpu)"
     fi

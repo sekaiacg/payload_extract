@@ -1,11 +1,6 @@
 #include <payload/LogBase.h>
 #include <payload/Utils.h>
 
-#include <payload/HttpDownload.h>
-
-#if defined(ENABLE_HTTP_CPR)
-#include "CprHttpDownload.h"
-#endif
 #include "ExtractOperation.h"
 
 namespace skkk {
@@ -57,17 +52,5 @@ namespace skkk {
 			}
 		}
 		return rc;
-	}
-
-	std::shared_ptr<HttpDownload> ExtractOperation::getHttpDownloadImpl() {
-		std::unique_lock lock(_mutex);
-		if (isUrl && !httpDownload) {
-#if defined(ENABLE_HTTP_CPR)
-			httpDownload = std::make_shared<CprHttpDownload>(payloadPath, sslVerification);
-#else
-			httpDownload = std::make_shared<HttpDownload>(payloadPath, sslVerification);
-#endif
-		}
-		return httpDownload;
 	}
 }

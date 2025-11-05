@@ -6,29 +6,12 @@ set(TARGET_CFLAGS
     "-Wno-deprecated-declarations"
 )
 
-#file(GLOB EXTRACT_SRCS "*.cpp")
+file(GLOB EXTRACT_SRCS "*.cpp")
 
-set(TARGET_SRCS
-    "${TARGET_SRC_DIR}/ExtractOperation.cpp"
-    "${TARGET_SRC_DIR}/main.cpp"
-)
-
-if (ENABLE_HTTP_CPR)
-    list(APPEND TARGET_SRCS "${TARGET_SRC_DIR}/CprHttpDownload.cpp")
-endif ()
-
-add_executable(${TARGET} ${TARGET_SRCS})
+add_executable(${TARGET} ${EXTRACT_SRCS})
 target_include_directories(${TARGET} PRIVATE "include")
 
-set(COMMON_LINK_LIBS payload)
-if (ENABLE_HTTP_CPR)
-    target_compile_definitions(${TARGET} PRIVATE "-DENABLE_HTTP_CPR")
-    list(APPEND COMMON_LINK_LIBS cpr::cpr libcurl)
-    if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
-        list(APPEND COMMON_LINK_LIBS mbedtls)
-    endif ()
-endif ()
-target_link_libraries(${TARGET} PUBLIC ${COMMON_LINK_LIBS})
+target_link_libraries(${TARGET} PUBLIC payload)
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${TARGET_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${TARGET_CFLAGS}>"

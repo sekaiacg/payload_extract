@@ -1,2 +1,5 @@
 add_subdirectory(lib)
-add_subdirectory(payload_extract)
+
+if (BUILD_PAYLOAD_EXTRACT)
+    add_subdirectory(payload_extract)
+endif ()
