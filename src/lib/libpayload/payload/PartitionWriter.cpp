@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "common/defs.h"
+#include "common/io.h"
 #include "common/threadpool.h"
 #include "payload/FileWriter.h"
 #include "payload/PartitionWriter.h"
@@ -64,23 +64,10 @@ namespace skkk {
 		return true;
 	}
 
-	inline int payload_fallocate(int fd, off64_t offset, off64_t length, int flags) {
-		int ret = -1;
-#if defined(HAVE_FALLOCATE)
-#if defined(HAVE_FALLOCATE64)
-		ret = fallocate64(fd, 0, 0, length);
-#else
-		ret = fallocate(fd, 0, 0, length);
-#endif
-#endif
-		return ret;
-	}
-
 	int PartitionWriter::createOutFile(const std::string &path, uint64_t fileSize) {
 		int fd = open(path.c_str(),
 		              O_CREAT | O_RDWR | O_TRUNC | O_BINARY, 0644);
 		if (fd > 0) {
-			if (!payload_fallocate(fd, 0, 0, fileSize)) return fd;
 			if (!payload_ftruncate(fd, fileSize)) return fd;
 		}
 		return fd;
@@ -91,9 +78,9 @@ namespace skkk {
 		return inFd;
 	}
 
-	int PartitionWriter::initOutFd(const std::string &path, uint64_t fileSize) {
+	int PartitionWriter::initOutFd(const std::string &path, uint64_t fileSize, bool isReOpen) {
 		int outFd = -1;
-		if (fileExists(path)) {
+		if (isReOpen && fileExists(path)) {
 			outFd = openFileRW(path);
 		} else {
 			outFd = createOutFile(path, fileSize);
@@ -295,7 +282,7 @@ namespace skkk {
 	                             const std::shared_ptr<std::atomic_int> &extractProgress) {
 		int ret = -1, payloadFd = -1, inFd = -1, outFd = -1;
 		FileWriter fw{extractConfig.httpDownload};
-		outFd = PartitionWriter::initOutFd(info.outFilePath, info.size);
+		outFd = PartitionWriter::initOutFd(info.outFilePath, info.size, true);
 		if (outFd <= 0) {
 			info.initExceptionInfoByInitFd(info.outFilePath, outFd);
 			goto exit;

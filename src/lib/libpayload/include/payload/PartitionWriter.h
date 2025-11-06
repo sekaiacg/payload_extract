@@ -35,7 +35,7 @@ namespace skkk {
 
 			static int initInFd(const std::string &path);
 
-			static int initOutFd(const std::string &path, uint64_t fileSize);
+			static int initOutFd(const std::string &path, uint64_t fileSize, bool isReOpen = false);
 
 			bool extractByInfo(const PartitionInfo &info) const;
 

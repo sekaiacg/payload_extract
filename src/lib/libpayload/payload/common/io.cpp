@@ -51,4 +51,9 @@ namespace skkk {
 
 		return written != len ? -EIO : 0;
 	}
+
+	int blobFallocate(int fd, off64_t pos, off64_t len) {
+		int ret = payload_fallocate(fd, FALLOC_FL_ZERO_RANGE, pos, len);
+		return ret;
+	}
 }
