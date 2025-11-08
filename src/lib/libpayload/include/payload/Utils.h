@@ -12,6 +12,16 @@
 #include <vector>
 #include <sys/stat.h>
 
+static std::string bytesToHexString(const uint8_t *bytes, uint32_t len) {
+	std::string result(len * 2, ' '); // 预分配空间
+	for (size_t i = 0; i < len; ++i) {
+		constexpr const char *charTable = "0123456789abcdef";
+		result[i * 2] = charTable[bytes[i] >> 4 & 0xF];
+		result[i * 2 + 1] = charTable[bytes[i] & 0xF];
+	}
+	return result;
+}
+
 static uint64_t getFileSize(const std::string &dirPath) {
 	struct stat st = {};
 	if (stat(dirPath.c_str(), &st) == 0) {

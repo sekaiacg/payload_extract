@@ -2,12 +2,16 @@
 #include "payload/LogBase.h"
 
 namespace skkk {
+	FileBuffer::FileBuffer(uint8_t *data, const uint32_t offset)
+		: data(data), offset(offset) {
+	}
+
 	HttpDownload::HttpDownload(const std::string &url, bool sslVerification) {
 		LOGE("The HttpDownload class is not implemented.");
 	}
 
-	uint64_t HttpDownload::getDlFileSize() const {
-		LOGE("The getDlFileSize() method is not implemented.");
+	uint64_t HttpDownload::getFileSize() const {
+		LOGE("The getFileSize() method is not implemented.");
 		return 0;
 	}
 

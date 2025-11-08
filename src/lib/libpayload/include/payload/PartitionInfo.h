@@ -4,24 +4,11 @@
 #include <atomic>
 #include <cinttypes>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include "HttpDownload.h"
-
 namespace skkk {
-	class FileWriteState {
-		public:
-			// write state
-			std::atomic_int extractTaskRunCount = 0;
-			std::atomic_int exceptionSize = 0;
-			std::vector<std::string> exceptionInfos;
-
-			FileWriteState() {
-				exceptionInfos.reserve(64);
-			}
-	};
-
 	class Extent {
 		public:
 			uint64_t blockSize = 0;
@@ -75,7 +62,7 @@ namespace skkk {
 			std::string dataSha256Hash;
 
 			// status
-			mutable std::string exceptionInfo;
+			mutable std::string excInfo;
 
 		public:
 			FileOperation() = default;
@@ -95,10 +82,12 @@ namespace skkk {
 				  dataSha256Hash(dataSha256Hash) {
 			}
 
-			void initExceptionInfo(int errCode) const;
+			void initExcInfo(int errCode) const;
 	};
 
 	class PartitionInfo {
+		std::shared_ptr<std::mutex> mutex_ = std::make_shared<std::mutex>();
+
 		public:
 			std::string name;
 			uint64_t size = 0;
@@ -110,11 +99,14 @@ namespace skkk {
 			uint32_t blockSize = 0;
 
 			std::string oldHash;
+			std::string oldHashHexStr;
 			uint64_t oldHashSize = 0;
 
 			std::string newHash;
+			std::string newHashHexStr;
 			uint64_t newHashSize = 0;
 
+			bool hasHashTreeDataExtent = false;
 			// The extent for data covered by verity hash tree.
 			Extent hashTreeDataExtent;
 			// The extent to store verity hash tree.
@@ -124,6 +116,7 @@ namespace skkk {
 			// The salt used for verity hash tree.
 			std::string hashTreeSalt;
 
+			bool hasFecDataExtent = false;;
 			// The extent for data covered by FEC.
 			Extent fecDataExtent;
 			// The extent to store FEC.
@@ -133,91 +126,27 @@ namespace skkk {
 
 			std::vector<FileOperation> operations;
 
-			std::shared_ptr<HttpDownload> httpDownload;
-
 			// status
 			std::shared_ptr<std::atomic_int> extractProgress = std::make_shared<std::atomic_int>(0);
 			mutable bool isExtractionSuccessful = false;
-			mutable std::vector<std::string> exceptionInfos;
+			mutable std::vector<std::string> excInfos;
 
 		public:
 			PartitionInfo() = default;
 
 			PartitionInfo(const std::string &name, uint64_t size, const std::string &outFilePath, uint32_t blockSize,
 			              const std::string &oldHash, uint64_t oldHashSize, const std::string &newHash,
-			              uint64_t newHashSize)
-				: name(name),
-				  size(size),
-				  outFilePath(outFilePath),
-				  blockSize(blockSize),
-				  oldHash(oldHash),
-				  oldHashSize(oldHashSize),
-				  newHash(newHash),
-				  newHashSize(newHashSize) {
-			}
-
-			PartitionInfo(const PartitionInfo &other)
-				: name(other.name),
-				  size(other.size),
-				  oldFilePath(other.oldFilePath),
-				  outFilePath(other.outFilePath),
-				  outErrorPath(other.outErrorPath),
-				  blockSize(other.blockSize),
-				  oldHash(other.oldHash),
-				  oldHashSize(other.oldHashSize),
-				  newHash(other.newHash),
-				  newHashSize(other.newHashSize),
-				  hashTreeDataExtent(other.hashTreeDataExtent),
-				  hashTreeExtent(other.hashTreeExtent),
-				  hashTreeAlgorithm(other.hashTreeAlgorithm),
-				  hashTreeSalt(other.hashTreeSalt),
-				  fecDataExtent(other.fecDataExtent),
-				  fecExtent(other.fecExtent),
-				  fecRoots(other.fecRoots),
-				  operations(other.operations),
-				  httpDownload(other.httpDownload),
-				  extractProgress(other.extractProgress),
-				  isExtractionSuccessful(other.isExtractionSuccessful),
-				  exceptionInfos(other.exceptionInfos) {
-			}
-
-			PartitionInfo &operator=(const PartitionInfo &other) {
-				if (this == &other)
-					return *this;
-				name = other.name;
-				size = other.size;
-				oldFilePath = other.oldFilePath;
-				outFilePath = other.outFilePath;
-				outErrorPath = other.outErrorPath;
-				blockSize = other.blockSize;
-				oldHash = other.oldHash;
-				oldHashSize = other.oldHashSize;
-				newHash = other.newHash;
-				newHashSize = other.newHashSize;
-				hashTreeDataExtent = other.hashTreeDataExtent;
-				hashTreeExtent = other.hashTreeExtent;
-				hashTreeAlgorithm = other.hashTreeAlgorithm;
-				hashTreeSalt = other.hashTreeSalt;
-				fecDataExtent = other.fecDataExtent;
-				fecExtent = other.fecExtent;
-				fecRoots = other.fecRoots;
-				operations = other.operations;
-				httpDownload = other.httpDownload;
-				extractProgress = other.extractProgress;
-				isExtractionSuccessful = other.isExtractionSuccessful;
-				exceptionInfos = other.exceptionInfos;
-				return *this;
-			}
+			              uint64_t newHashSize);
 
 			void printInfo() const;
 
 			bool checkExtractionSuccessful() const;
 
-			void initExceptionInfoByInitFd(const std::string &path, int errCode) const;
+			void initExcInfoByInitFd(const std::string &path, int errCode) const;
 
-			void initExceptionInfo() const;
+			void initExcInfos() const;
 
-			void ifExceptionExistsWrite2File() const;
+			void ifExcExistsWrite2File() const;
 
 			void resetStatus() const;
 	};

@@ -1,8 +1,6 @@
 #ifndef PAYLOAD_EXTRACT_EXTRACTOPERATION_H
 #define PAYLOAD_EXTRACT_EXTRACTOPERATION_H
 
-#include <cinttypes>
-#include <memory>
 #include <mutex>
 #include <string>
 

@@ -18,18 +18,22 @@ namespace skkk {
 			}
 			if (info && info->initPayloadInfo()) {
 				payloadInfo = info;
-				partitionWriter = std::make_shared<PartitionWriter>(info);
+				partitionWriter = std::make_shared<PartitionWriter>(payloadInfo);
 			}
-			return payloadInfo != nullptr;
+			return initialized = (payloadInfo && partitionWriter);
 		}
 		return false;
 	}
 
 	std::shared_ptr<PayloadInfo> PayloadParser::getPayloadInfo() {
+		std::unique_lock lock(_mutex);
+		if (!initialized) return nullptr;
 		return payloadInfo;
 	}
 
 	std::shared_ptr<PartitionWriter> PayloadParser::getPartitionWriter() {
+		std::unique_lock lock(_mutex);
+		if (!initialized) return nullptr;
 		return partitionWriter;
 	}
 }

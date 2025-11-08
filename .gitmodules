@@ -1,7 +1,7 @@
 [submodule "src/lib/cpr"]
 	path = src/lib/cpr
-	url = https://github.com/sekaiacg/cpr
-	branch = macosx
+	url = https://github.com/libcpr/cpr.git
+	branch = master
 [submodule "src/lib/bzip2"]
 	path = src/lib/bzip2
 	url = https://android.googlesource.com/platform/external/bzip2

@@ -6,8 +6,8 @@
 
 #include <payload/ExtractConfig.h>
 #include <payload/LogBase.h>
-#include "payload/PayloadParser.h"
-#include "payload/PartitionWriter.h"
+#include <payload/PartitionWriter.h>
+#include <payload/PayloadParser.h>
 #include <payload/Utils.h>
 
 #include "ExtractOperation.h"
@@ -16,7 +16,7 @@ using namespace skkk;
 
 static void usage(const ExtractOperation &eo) {
 	char buf[1536] = {};
-	snprintf(buf, 1536,
+	snprintf(buf, sizeof(buf) - 1,
 			 BROWN "usage: [options]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-h, --help" COLOR_NONE "           " BROWN "Display this help and exit" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-i, --input=[PATH]" COLOR_NONE "   " BROWN "File path or URL" COLOR_NONE "\n"
@@ -41,16 +41,13 @@ static void usage(const ExtractOperation &eo) {
 #define PAYLOAD_EXTRACT_VERSION "v0.0.0"
 #endif
 #ifndef PAYLOAD_EXTRACT_BUILD_TIME
-#define PAYLOAD_EXTRACT_BUILD_TIME "-0"
+#define PAYLOAD_EXTRACT_BUILD_TIME "-0000000000"
 #endif
 
-static void print_version() {
-	printf(
-		"  " BROWN "payload_extract:" COLOR_NONE "     " RED2_BOLD PAYLOAD_EXTRACT_VERSION PAYLOAD_EXTRACT_BUILD_TIME
-		COLOR_NONE "\n");
+static void printVersion() {
+	printf("  " BROWN "payload_extract:" COLOR_NONE "     " RED2_BOLD PAYLOAD_EXTRACT_VERSION PAYLOAD_EXTRACT_BUILD_TIME COLOR_NONE "\n");
 	printf("  " BROWN "author:" COLOR_NONE "              " RED2_BOLD "skkk" COLOR_NONE "\n");
 }
-
 
 static option argOptions[] = {
 	{"help", no_argument, nullptr, 'h'},
@@ -59,7 +56,7 @@ static option argOptions[] = {
 	{"outdir", required_argument, nullptr, 'o'},
 	{"print", required_argument, nullptr, 'P'},
 	{"extract", required_argument, nullptr, 'X'},
-	{"incremental", required_argument, nullptr, 100},
+	{"incremental", required_argument, nullptr, 200},
 	{nullptr, no_argument, nullptr, 0},
 };
 
@@ -73,7 +70,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 				usage(eo);
 				goto exit;
 			case 'V':
-				print_version();
+				printVersion();
 				goto exit;
 			case 'i':
 				if (optarg) {
@@ -126,7 +123,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 					}
 				}
 				break;
-			case 100:
+			case 200:
 				eo.isIncremental = true;
 				if (optarg) {
 					eo.isIncremental = true;
@@ -136,7 +133,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 				break;
 			default:
 				usage(eo);
-				print_version();
+				printVersion();
 				goto exit;
 		}
 	}
@@ -240,7 +237,7 @@ int main(const int argc, char *argv[]) {
 	gettimeofday(&start, nullptr);
 
 	// config
-	ExtractOperation eo{};
+	ExtractOperation eo;
 	PayloadParser payloadParser;
 	std::shared_ptr<PartitionWriter> pw;
 	if (parseExtractOperation(argc, argv, eo) != RET_EXTRACT_CONFIG_DONE) {

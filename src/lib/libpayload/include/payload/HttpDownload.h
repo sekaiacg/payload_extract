@@ -8,16 +8,12 @@ namespace skkk {
 	class FileBuffer {
 		public:
 			uint8_t *data = nullptr;
-			uint32_t length = 0;
+			uint32_t offset = 0;
 
 		public:
-			FileBuffer(uint8_t *data, const uint32_t length) : data(data), length(length) {
-			}
+			FileBuffer(uint8_t *data, const uint32_t offset);
 
 			~FileBuffer() { data = nullptr; }
-	};
-
-	class DefaultHttpDownload {
 	};
 
 	class HttpDownload {
@@ -32,7 +28,7 @@ namespace skkk {
 
 			virtual ~HttpDownload() = default;
 
-			virtual uint64_t getDlFileSize() const;
+			virtual uint64_t getFileSize() const;
 
 			virtual bool download(std::string &data, uint64_t offset, uint64_t length) const;
 

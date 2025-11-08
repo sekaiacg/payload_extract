@@ -56,7 +56,7 @@ namespace skkk {
 		}
 	}
 
-	uint64_t CprHttpDownload::getDlFileSize() const {
+	uint64_t CprHttpDownload::getFileSize() const {
 		cpr::Session session;
 		initSession(session);
 		uint64_t fileSize = session.GetDownloadFileLength();
@@ -87,8 +87,8 @@ namespace skkk {
 
 	static bool writeDataFb(const std::string_view &data, intptr_t userdata) {
 		auto *f = reinterpret_cast<FileBuffer *>(userdata);
-		memcpy(f->data + f->length, data.data(), data.size());
-		f->length += data.size();
+		memcpy(f->data + f->offset, data.data(), data.size());
+		f->offset += data.size();
 		return true;
 	}
 
@@ -100,7 +100,6 @@ namespace skkk {
 			writeDataFb,
 			reinterpret_cast<intptr_t>(&fb)
 		});
-		fb.length = 0;
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
 		    r.downloaded_bytes == length) {
 			return true;
@@ -121,7 +120,6 @@ namespace skkk {
 			reinterpret_cast<intptr_t>(&fb)
 		});
 		fb.data = backDataPtr;
-		fb.length = 0;
 
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
 		    r.downloaded_bytes == length) {

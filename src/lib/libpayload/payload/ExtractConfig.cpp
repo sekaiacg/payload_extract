@@ -4,6 +4,16 @@
 #include "payload/Utils.h"
 
 namespace skkk {
+	ExtractConfig::ExtractConfig(int payloadType, const std::string &payloadPath,
+	                             const std::string &oldDir, const std::string &outDir,
+	                             bool sslVerification)
+		: payloadPath(payloadPath),
+		  oldDir(oldDir),
+		  outDir(outDir),
+		  payloadType(payloadType),
+		  sslVerification(sslVerification) {
+	}
+
 	const std::string &ExtractConfig::getOldDir() const {
 		return oldDir;
 	}
@@ -47,7 +57,7 @@ namespace skkk {
 		targets = target;
 	}
 
-	std::shared_ptr<HttpDownload> ExtractConfig::getHttpDownloadImpl() {
+	const std::shared_ptr<HttpDownload> &ExtractConfig::getHttpDownloadImpl() {
 		std::unique_lock lock(_mutex);
 		if (isUrl && !httpDownload) {
 #if defined(ENABLE_HTTP_CPR)

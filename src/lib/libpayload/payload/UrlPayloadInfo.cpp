@@ -1,19 +1,24 @@
 #include "common/io.h"
-#include "../include/payload/ZipParser.h"
+#include "payload/ZipParser.h"
 #include "payload/HttpDownload.h"
 #include "payload/LogBase.h"
 #include "payload/PayloadInfo.h"
 
 namespace skkk {
+	UrlPayloadInfo::UrlPayloadInfo(const ExtractConfig &config)
+		: PayloadInfo(config),
+		  httpDownload(config.httpDownload) {
+	}
+
 	bool UrlPayloadInfo::initPayloadFile() {
 		return true;
 	}
 
-	bool UrlPayloadInfo::download(std::string &data, uint64_t pos, uint64_t len) const {
+	bool UrlPayloadInfo::download(std::string &data, uint64_t offset, uint64_t length) const {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload->download(data, pos, len);
+		ret = httpDownload->download(data, offset, length);
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
@@ -24,11 +29,11 @@ namespace skkk {
 		return ret;
 	}
 
-	bool UrlPayloadInfo::download(FileBuffer &fb, uint64_t pos, uint64_t len) const {
+	bool UrlPayloadInfo::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload->download(fb, pos, len);
+		ret = httpDownload->download(fb, offset, length);
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;
@@ -49,7 +54,7 @@ namespace skkk {
 		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
 
 		if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
-			ZipParser zip{extractConfig.httpDownload};
+			ZipParser zip{config.httpDownload};
 			if (zip.parse()) {
 				zipFiles = std::move(zip.files);
 				return true;
@@ -61,8 +66,7 @@ namespace skkk {
 	bool UrlPayloadInfo::handleOffset() {
 		if (handleZipFile()) {
 			if (!zipFiles.empty()) {
-				const auto it =
-						std::ranges::find_if(zipFiles, [](const auto &zfi) { return zfi.name == "payload.bin"; });
+				const auto it = std::ranges::find(zipFiles, "payload.bin", &ZipFileItem::name);
 				if (it != zipFiles.end()) {
 					uint8_t data[PLH_SIZE] = {};
 					auto header = reinterpret_cast<uint8_t *>(&data);

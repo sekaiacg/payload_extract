@@ -3,8 +3,17 @@
 #include "payload/ZipParser.h"
 
 namespace skkk {
+	ZipParser::ZipParser(const std::string &path, int inFileFd)
+		: path(path),
+		  inFileFd(inFileFd) {
+	}
+
+	ZipParser::ZipParser(const std::shared_ptr<HttpDownload> &httpDownload)
+		: httpDownload(httpDownload) {
+	}
+
 	bool ZipParser::getFileData(uint8_t *data, uint64_t offset, uint64_t len) const {
-		if (isUrl) {
+		if (httpDownload) {
 			FileBuffer fb{data, 0};
 			return httpDownload->download(fb, offset, len);
 		}
@@ -12,8 +21,8 @@ namespace skkk {
 	}
 
 	uint64_t ZipParser::getZipFileSize() const {
-		if (isUrl) {
-			return httpDownload->getDlFileSize();
+		if (httpDownload) {
+			return httpDownload->getFileSize();
 		}
 		return getFileSize(path);
 	}
@@ -27,7 +36,7 @@ namespace skkk {
 		const uint64_t searchSize = std::min(fileSize - eocdSize, maxEOCDSize);
 		uint64_t eocdStartOffset = 0;
 		bool foundEOCD = false;
-		ZipEOCD eocd = {};
+		ZipEOCD eocd{};
 
 		std::string buffer;
 		buffer.reserve(maxEOCDSize * 2);
@@ -52,7 +61,7 @@ namespace skkk {
 		                     eocd.centralDirOffset == 0xFFFFFFFF ||
 		                     eocd.numEntriesThisDisk == 0xFFFF;
 
-		Zip64EOCDLocator eocd64Locator = {};
+		Zip64EOCDLocator eocd64Locator{};
 		if (isZip64) {
 			const uint64_t locatorPos = eocdStartOffset - sizeof(Zip64EOCDLocator);
 			if (!getFileData(reinterpret_cast<uint8_t *>(&eocd64Locator),
@@ -64,7 +73,7 @@ namespace skkk {
 		}
 
 		uint64_t centralDirOffset = isZip64 ? eocd64Locator.eocd64Offset : eocd.centralDirOffset;
-		Zip64EOCD eocd64 = {};
+		Zip64EOCD eocd64{};
 		if (isZip64) {
 			if (!getFileData(reinterpret_cast<uint8_t *>(&eocd64),
 			                 centralDirOffset, sizeof(Zip64EOCD)))

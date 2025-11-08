@@ -9,27 +9,12 @@
 namespace skkk {
 	class FileWriter {
 		using decompressPtr = std::function<int(const uint8_t *src, uint64_t srcSize,
-		                                        uint8_t *dest, uint64_t &destSize)>;
+		                                        uint8_t *dest, uint64_t destSize)>;
 
-		std::shared_ptr<HttpDownload> httpDownload;
+		const std::shared_ptr<HttpDownload> &httpDownload;
 
 		public:
-			FileWriter() = default;
-
-			explicit FileWriter(const std::shared_ptr<HttpDownload> &httpDownload)
-				: httpDownload(httpDownload) {
-			}
-
-			FileWriter(const FileWriter &other)
-				: httpDownload(other.httpDownload) {
-			}
-
-			FileWriter &operator=(const FileWriter &other) {
-				if (this == &other)
-					return *this;
-				httpDownload = other.httpDownload;
-				return *this;
-			}
+			FileWriter(const std::shared_ptr<HttpDownload> &httpDownload);
 
 			int urlRead(uint8_t *buf, const FileOperation &operation) const;
 

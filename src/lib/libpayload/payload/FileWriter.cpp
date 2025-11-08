@@ -1,6 +1,5 @@
 #include <random>
 #include <thread>
-
 #include <bsdiff/bspatch.h>
 
 #include "common/io.h"
@@ -18,6 +17,10 @@ namespace skkk {
 
 	static uint32_t getRdWaitTime() {
 		return randomWaitTime(mt);
+	}
+
+	FileWriter::FileWriter(const std::shared_ptr<HttpDownload> &httpDownload)
+		: httpDownload(httpDownload) {
 	}
 
 	int FileWriter::urlRead(uint8_t *buf, const FileOperation &operation) const {
@@ -83,7 +86,6 @@ namespace skkk {
 	}
 
 	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
-		// static constexpr char buf[1] = {};
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
 		auto *srcBuf = static_cast<uint8_t *>(calloc(1, dst.dataLength));

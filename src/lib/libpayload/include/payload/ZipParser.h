@@ -98,31 +98,9 @@ namespace skkk {
 
 		public:
 			ZipFileItem(const std::string &name, const uint64_t compressedSize, const uint64_t uncompressedSize,
-			            const uint64_t localHeaderOffset, const uint16_t compression,
-			            const uint32_t crc32) : name(name), compressedSize(compressedSize),
-			                                    uncompressedSize(uncompressedSize),
-			                                    localHeaderOffset(localHeaderOffset),
-			                                    offset(0), compression(compression), crc32(crc32) {
-			}
-
-			ZipFileItem(const ZipFileItem &zfi) : name(zfi.name),
-			                                      compressedSize(zfi.compressedSize),
-			                                      uncompressedSize(zfi.uncompressedSize),
-			                                      localHeaderOffset(zfi.localHeaderOffset),
-			                                      offset(zfi.offset), compression(zfi.compression), crc32(zfi.crc32) {
-			}
-
-			ZipFileItem &operator=(const ZipFileItem &&zfi) {
-				if (this != &zfi) {
-					this->name = std::move(zfi.name);
-					this->compressedSize = zfi.compressedSize;
-					this->uncompressedSize = zfi.uncompressedSize;
-					this->localHeaderOffset = zfi.localHeaderOffset;
-					this->offset = zfi.uncompressedSize;
-					this->compression = zfi.uncompressedSize;
-					this->crc32 = zfi.crc32;
-				}
-				return *this;
+			            const uint64_t localHeaderOffset, const uint16_t compression, const uint32_t crc32)
+				: name(name), compressedSize(compressedSize), uncompressedSize(uncompressedSize),
+				  localHeaderOffset(localHeaderOffset), offset(0), compression(compression), crc32(crc32) {
 			}
 	};
 
@@ -131,17 +109,12 @@ namespace skkk {
 			std::shared_ptr<HttpDownload> httpDownload;
 			std::string path;
 			int inFileFd;
-			bool isUrl;
 			std::vector<ZipFileItem> files;
 
 		public:
-			explicit ZipParser(const std::string &path, int inFileFd) : path(path),
-			                                                            inFileFd(inFileFd), isUrl(false) {
-			}
+			explicit ZipParser(const std::string &path, int inFileFd);
 
-			explicit ZipParser(const std::shared_ptr<HttpDownload> &httpDownload) : httpDownload(httpDownload),
-				isUrl(true) {
-			}
+			explicit ZipParser(const std::shared_ptr<HttpDownload> &httpDownload);
 
 			bool getFileData(uint8_t *data, uint64_t offset, uint64_t len) const;
 

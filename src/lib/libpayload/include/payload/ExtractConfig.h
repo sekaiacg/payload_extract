@@ -42,6 +42,11 @@ namespace skkk {
 
 		public:
 			int payloadType = PAYLOAD_TYPE_ZIP;
+#if !defined(_WIN32)
+			static constexpr bool isWin = false;
+#else
+			static constexpr bool isWin = true;
+#endif
 			bool isIncremental = false;
 			bool isExcludeMode = false;
 			bool isSilent = false;
@@ -56,54 +61,7 @@ namespace skkk {
 			ExtractConfig() = default;
 
 			ExtractConfig(int payloadType, const std::string &payloadPath, const std::string &oldDir,
-			              const std::string &outDir, bool sslVerification)
-				: payloadPath(payloadPath),
-				  oldDir(oldDir),
-				  outDir(outDir),
-				  payloadType(payloadType),
-				  sslVerification(sslVerification) {
-			}
-
-			ExtractConfig(const ExtractConfig &other)
-				: payloadPath(other.payloadPath),
-				  oldDir(other.oldDir),
-				  outDir(other.outDir),
-				  outFIlePath(other.outFIlePath),
-				  targetName(other.targetName),
-				  targets(other.targets),
-				  payloadType(other.payloadType),
-				  isIncremental(other.isIncremental),
-				  isExcludeMode(other.isExcludeMode),
-				  isSilent(other.isSilent),
-				  isUrl(other.isUrl),
-				  sslVerification(other.sslVerification),
-				  threadNum(other.threadNum),
-				  hardwareConcurrency(other.hardwareConcurrency),
-				  limitHardwareConcurrency(other.limitHardwareConcurrency),
-				  httpDownload(other.httpDownload) {
-			}
-
-			ExtractConfig &operator=(const ExtractConfig &other) {
-				if (this == &other)
-					return *this;
-				payloadPath = other.payloadPath;
-				oldDir = other.oldDir;
-				outDir = other.outDir;
-				outFIlePath = other.outFIlePath;
-				targetName = other.targetName;
-				targets = other.targets;
-				payloadType = other.payloadType;
-				isIncremental = other.isIncremental;
-				isExcludeMode = other.isExcludeMode;
-				isSilent = other.isSilent;
-				isUrl = other.isUrl;
-				sslVerification = other.sslVerification;
-				threadNum = other.threadNum;
-				hardwareConcurrency = other.hardwareConcurrency;
-				limitHardwareConcurrency = other.limitHardwareConcurrency;
-				httpDownload = other.httpDownload;
-				return *this;
-			}
+			              const std::string &outDir, bool sslVerification);
 
 			virtual ~ExtractConfig() = default;
 
@@ -127,7 +85,7 @@ namespace skkk {
 
 			virtual void setTargets(const std::vector<std::string> &target);
 
-			virtual std::shared_ptr<HttpDownload> getHttpDownloadImpl();
+			virtual const std::shared_ptr<HttpDownload> &getHttpDownloadImpl();
 	};
 }
 

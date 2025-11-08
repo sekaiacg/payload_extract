@@ -5,15 +5,22 @@
 #include <cerrno>
 #include <cinttypes>
 #include <cstring>
+#include <string>
 
 #include "ioDefs.h"
 
 namespace skkk {
-	int blobRead(int fd, void *data, uint64_t pos, uint64_t len);
+	int openFileRD(const std::string &path);
 
-	int blobWrite(int fd, const void *data, uint64_t pos, uint64_t len);
+	int openFileRW(const std::string &path);
 
-	int blobFallocate(int fd, off64_t offset, off64_t len);
+	void closeFd(int fd);
+
+	int blobRead(int fd, void *data, uint64_t offset, uint64_t length);
+
+	int blobWrite(int fd, const void *data, uint64_t offset, uint64_t length);
+
+	int blobFallocate(int fd, off64_t offset, off64_t length);
 }
 
 #endif //PAYLOAD_EXTRACT_IO_H

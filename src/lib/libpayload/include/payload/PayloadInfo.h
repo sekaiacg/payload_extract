@@ -15,7 +15,7 @@ namespace skkk {
 
 	class PayloadInfo {
 		protected:
-			ExtractConfig extractConfig;
+			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
 			uint64_t fileBaseOffset = 0;
@@ -31,7 +31,7 @@ namespace skkk {
 
 			virtual ~PayloadInfo();
 
-			const ExtractConfig &getExtractConfig() const;
+			const ExtractConfig &getConfig() const;
 
 			const std::string &getPath() const;
 
@@ -66,18 +66,16 @@ namespace skkk {
 
 	class UrlPayloadInfo : public PayloadInfo {
 		public:
-			std::shared_ptr<HttpDownload> httpDownload;
+			const std::shared_ptr<HttpDownload> &httpDownload;
 
 		public:
-			explicit UrlPayloadInfo(const ExtractConfig &config) : PayloadInfo(config) {
-				httpDownload = config.httpDownload;
-			}
+			explicit UrlPayloadInfo(const ExtractConfig &config);
 
 			bool initPayloadFile() override;
 
-			bool download(std::string &data, uint64_t pos, uint64_t len) const;
+			bool download(std::string &data, uint64_t offset, uint64_t length) const;
 
-			bool download(FileBuffer &fb, uint64_t pos, uint64_t len) const;
+			bool download(FileBuffer &fb, uint64_t offset, uint64_t length) const;
 
 			bool handleZipFile() override;
 

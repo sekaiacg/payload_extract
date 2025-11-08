@@ -19,15 +19,13 @@ namespace skkk {
 			cpr::Header cprHeader;
 
 		public:
-			CprHttpDownload() = default;
-
 			CprHttpDownload(const std::string &url, bool sslVerification);
 
 			static void initCA();
 
 			void initSession(cpr::Session &session) const;
 
-			uint64_t getDlFileSize() const override;
+			uint64_t getFileSize() const override;
 
 			bool download(std::string &data, uint64_t offset, uint64_t length) const override;
 

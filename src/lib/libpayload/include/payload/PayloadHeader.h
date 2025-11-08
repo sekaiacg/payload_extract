@@ -2,6 +2,7 @@
 #define PAYLOAD_EXTRACT_PAYLOADHEADER_H
 
 #include <cinttypes>
+#include <cstdlib>
 #include <string>
 
 #include "LogBase.h"
@@ -41,6 +42,11 @@ namespace skkk {
 			std::string securityPatchLevel;
 
 		public:
+			~PayloadHeader() {
+				if (manifest) free(manifest);
+				if (metadata_signature_message) free(metadata_signature_message);
+			}
+
 			bool isFileFormatVersionValid() const {
 				switch (fileFormatVersion) {
 					case VERSION_0:

@@ -1,23 +1,22 @@
-#include "payload/PayloadInfo.h"
-
 #include <cinttypes>
 #include <string>
 
 #include "common/defs.h"
 #include "common/io.h"
+#include "payload/PayloadInfo.h"
 
 namespace skkk {
-	PayloadInfo::PayloadInfo(const ExtractConfig &config) {
+	PayloadInfo::PayloadInfo(const ExtractConfig &config)
+		: config(config) {
 		this->path = config.getPayloadPath();
-		this->extractConfig = config;
 	}
 
 	PayloadInfo::~PayloadInfo() {
 		closePayloadFile();
 	}
 
-	const ExtractConfig &PayloadInfo::getExtractConfig() const {
-		return extractConfig;
+	const ExtractConfig &PayloadInfo::getConfig() const {
+		return config;
 	}
 
 	const std::string &PayloadInfo::getPath() const {
@@ -62,8 +61,7 @@ namespace skkk {
 	bool PayloadInfo::handleOffset() {
 		if (handleZipFile()) {
 			if (!zipFiles.empty()) {
-				const auto it =
-						std::ranges::find_if(zipFiles, [](const auto &zfi) { return zfi.name == "payload.bin"; });
+				const auto it = std::ranges::find(zipFiles, "payload.bin", &ZipFileItem::name);
 				if (it != zipFiles.end()) {
 					uint8_t buf[PLH_SIZE] = {};
 					if (!getPayloadData(buf, it->localHeaderOffset, PLH_SIZE)) {
@@ -139,7 +137,6 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parsePartitionInfo() {
-		const auto &config = extractConfig;
 		const auto partitionsSize = manifest.partitions_size();
 		const auto minorVersion = manifest.minor_version();
 		const uint64_t offset = fileBaseOffset + pHeader.inPayloadBinOffset;
@@ -154,31 +151,36 @@ namespace skkk {
 			const auto &npi = pu.new_partition_info();
 			const auto &partName = pu.partition_name();
 
-			std::string outFilePath = extractConfig.getOutDir() + "/" + partName + ".img";
+			std::string outFilePath = config.getOutDir() + "/" + partName + ".img";
 
-			auto &partInfo = partitionInfoMap[partName] = {
-				                 partName, npi.size(),
-				                 outFilePath, blockSize,
-				                 opi.hash(), opi.size(),
-				                 npi.hash(), npi.size()
-			                 };
+			auto &partInfo = partitionInfoMap.emplace(std::piecewise_construct, std::forward_as_tuple(partName),
+			                                          std::forward_as_tuple(partName, npi.size(),
+			                                                                outFilePath, blockSize,
+			                                                                opi.hash(), opi.size(),
+			                                                                npi.hash(), npi.size())).first->second;
 			if (config.isIncremental) {
-				partInfo.oldFilePath = extractConfig.getOldDir() + "/" + partName + ".img";
+				partInfo.oldFilePath = config.getOldDir() + "/" + partName + ".img";
 			}
-			partInfo.outErrorPath = extractConfig.getOutDir() + "/" + partName + "_err.txt";
+			partInfo.outErrorPath = config.getOutDir() + "/" + partName + "_err.txt";
 
-			auto &htde = pu.hash_tree_extent();
-			partInfo.hashTreeDataExtent = {blockSize, htde.start_block(), htde.num_blocks()};
-			auto &hte = pu.hash_tree_extent();
-			partInfo.hashTreeExtent = {blockSize, hte.start_block(), hte.num_blocks()};
-			partInfo.hashTreeAlgorithm = pu.hash_tree_algorithm();
-			partInfo.hashTreeSalt = pu.hash_tree_salt();
-			auto &fde = pu.fec_data_extent();
-			partInfo.fecDataExtent = {blockSize, fde.start_block(), fde.num_blocks()};
-			auto &fe = pu.fec_extent();
-			partInfo.fecExtent = {blockSize, fe.start_block(), fe.num_blocks()};
-			partInfo.fecRoots = pu.fec_roots();
+			if (pu.has_hash_tree_data_extent()) {
+				partInfo.hasHashTreeDataExtent = true;
+				auto &htde = pu.hash_tree_data_extent();
+				partInfo.hashTreeDataExtent = {blockSize, htde.start_block(), htde.num_blocks()};
+				auto &hte = pu.hash_tree_extent();
+				partInfo.hashTreeExtent = {blockSize, hte.start_block(), hte.num_blocks()};
+				partInfo.hashTreeAlgorithm = pu.hash_tree_algorithm();
+				partInfo.hashTreeSalt = pu.hash_tree_salt();
+			}
 
+			if (pu.has_fec_data_extent()) {
+				partInfo.hasFecDataExtent = true;
+				auto &fde = pu.fec_data_extent();
+				partInfo.fecDataExtent = {blockSize, fde.start_block(), fde.num_blocks()};
+				auto &fe = pu.fec_extent();
+				partInfo.fecExtent = {blockSize, fe.start_block(), fe.num_blocks()};
+				partInfo.fecRoots = pu.fec_roots();
+			}
 
 			auto &operations = partInfo.operations;
 			operations.reserve(static_cast<uint32_t>(pu.operations_size() * 1.5));
@@ -220,7 +222,7 @@ namespace skkk {
 	}
 
 	void PayloadInfo::closePayloadFile() {
-		close(payloadFd);
+		closeFd(payloadFd);
 		payloadFd = -1;
 	}
 }
