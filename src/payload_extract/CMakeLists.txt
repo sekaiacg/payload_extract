@@ -24,7 +24,7 @@ else ()
     MESSAGE(WARNING "[payload_extract] version is v0.0.0")
 endif ()
 
-set(ENV{TZ} UTF-8)
+set(ENV{TZ} UTC-8)
 execute_process(
     COMMAND date "+%y%m%d%H%M"
     OUTPUT_VARIABLE PAYLOAD_EXTRACT_BUILD_TIME
