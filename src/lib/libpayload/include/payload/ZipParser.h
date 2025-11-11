@@ -2,7 +2,6 @@
 #define ZIP_PARSE_H
 
 #include <cstdint>
-#include <fstream>
 #include <memory>
 #include <vector>
 
@@ -108,7 +107,7 @@ namespace skkk {
 		public:
 			std::shared_ptr<HttpDownload> httpDownload;
 			std::string path;
-			int inFileFd;
+			int inFileFd = -1;
 			std::vector<ZipFileItem> files;
 
 		public:

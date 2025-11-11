@@ -1,10 +1,10 @@
 #ifndef PAYLOAD_EXTRACT_IO_H
 #define PAYLOAD_EXTRACT_IO_H
 
-#include <fcntl.h>
 #include <cerrno>
 #include <cinttypes>
 #include <cstring>
+#include <fcntl.h>
 #include <string>
 
 #include "ioDefs.h"
@@ -14,7 +14,7 @@ namespace skkk {
 
 	int openFileRW(const std::string &path);
 
-	void closeFd(int fd);
+	void closeFd(int &fd);
 
 	int blobRead(int fd, void *data, uint64_t offset, uint64_t length);
 

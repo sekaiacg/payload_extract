@@ -10,8 +10,11 @@ namespace skkk {
 		return open(path.c_str(), O_RDWR | O_BINARY);
 	}
 
-	void closeFd(int fd) {
-		if (fd > 0) close(fd);
+	void closeFd(int &fd) {
+		if (fd > 0) {
+			close(fd);
+			fd = -1;
+		}
 	}
 
 	int blobRead(int fd, void *data, uint64_t offset, uint64_t length) {

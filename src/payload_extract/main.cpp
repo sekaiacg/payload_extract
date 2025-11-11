@@ -9,6 +9,7 @@
 #include <payload/PartitionWriter.h>
 #include <payload/PayloadParser.h>
 #include <payload/Utils.h>
+#include <payload/verify/VerifyWriter.h>
 
 #include "ExtractOperation.h"
 
@@ -21,6 +22,11 @@ static void usage(const ExtractOperation &eo) {
 			 "  " GREEN2_BOLD "-h, --help" COLOR_NONE "           " BROWN "Display this help and exit" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-i, --input=[PATH]" COLOR_NONE "   " BROWN "File path or URL" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "--incremental=X" COLOR_NONE "      " BROWN "Old directory, Catalog requiring incremental patching" COLOR_NONE "\n"
+			 "  " GREEN2_BOLD "--verify-update" COLOR_NONE "      " BROWN "  In the incremental mode, The dm-verify verified file" COLOR_NONE "\n"
+			 "  "             "               "            "      " BROWN "  does not contain HASH_TREE and FEC. Only files that" COLOR_NONE "\n"
+			 "  "             "               "            "      " BROWN "  have successfully updated this information can undergo" COLOR_NONE "\n"
+			 "  "             "               "            "      " BROWN "  SHA256 verification." COLOR_NONE "\n"
+			 "  " GREEN2_BOLD "--verify-update=X" COLOR_NONE "    " BROWN "  Only Verify and update the specified targets: [boot,odm,...]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-p" COLOR_NONE "                   " BROWN "Print all info" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-P, --print=X" COLOR_NONE "        " BROWN "Print the specified targets: [boot,odm,...]" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-x" COLOR_NONE "                   " BROWN "Extract all items" COLOR_NONE "\n"
@@ -57,6 +63,7 @@ static option argOptions[] = {
 	{"print", required_argument, nullptr, 'P'},
 	{"extract", required_argument, nullptr, 'X'},
 	{"incremental", required_argument, nullptr, 200},
+	{"verify-update", optional_argument, nullptr, 201},
 	{nullptr, no_argument, nullptr, 0},
 };
 
@@ -131,6 +138,15 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 				}
 				LOGCD("isIncremental=%d oldDir=%s", eo.isIncremental, eo.getOldDir().c_str());
 				break;
+			case 201:
+				eo.isVerifyUpdate = true;
+				if (eo.getTargetName().empty()) {
+					if (optarg) {
+						eo.setTargetName(optarg);
+					}
+				}
+				LOGCD("isVerifyUpdate=%d oldDir=%s", eo.isVerifyUpdate, eo.getOldDir().c_str());
+				break;
 			default:
 				usage(eo);
 				printVersion();
@@ -163,7 +179,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 		ret = eo.initOutDir();
 		if (ret) goto exit;
 
-		if (eo.isPrintTarget || eo.isExtractTarget) {
+		if (!eo.getTargetName().empty()) {
 			ret = eo.initTargetNames();
 			if (ret) goto exit;
 		}
@@ -236,10 +252,11 @@ int main(const int argc, char *argv[]) {
 	// Start time
 	gettimeofday(&start, nullptr);
 
-	// config
+	// Config
 	ExtractOperation eo;
 	PayloadParser payloadParser;
 	std::shared_ptr<PartitionWriter> pw;
+	std::shared_ptr<VerifyWriter> vw;
 	if (parseExtractOperation(argc, argv, eo) != RET_EXTRACT_CONFIG_DONE) {
 		ret = RET_EXTRACT_INIT_FAIL;
 		goto exit;
@@ -257,11 +274,16 @@ int main(const int argc, char *argv[]) {
 	// PartitionWriter
 	pw = payloadParser.getPartitionWriter();
 
-	if (eo.isPrintTarget || eo.isExtractTarget) {
+	if (!eo.getTargetName().empty()) {
 		ret = pw->initPartitionsByTarget();
 	} else if (eo.isPrintAll || eo.isExtractAll) {
 		ret = pw->initPartitions();
 	}
+
+	// VerifyWriter
+	vw = pw->getVerifyWriter();
+	vw->initHashTreeLevel();
+
 	if (eo.isPrintTarget || eo.isPrintAll) {
 		pw->printPartitionsInfo();
 		goto exit;
@@ -276,6 +298,16 @@ int main(const int argc, char *argv[]) {
 			goto exit;
 		}
 		pw->extractPartitions();
+
+		if (eo.isIncremental && eo.isVerifyUpdate) {
+			vw->updateVerifyData();
+		}
+		goto end;
+	}
+
+	if (eo.isIncremental && eo.isVerifyUpdate) {
+		vw->updateVerifyData();
+		goto end;
 	}
 
 end:

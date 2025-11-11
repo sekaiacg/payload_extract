@@ -26,3 +26,7 @@
 	path = src/lib/zstd
 	url = https://github.com/facebook/zstd
 	branch = dev
+[submodule "src/lib/fec_rs"]
+	path = src/lib/fec_rs
+	url = https://android.googlesource.com/platform/external/fec
+	branch = main

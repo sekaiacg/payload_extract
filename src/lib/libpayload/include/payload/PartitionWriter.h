@@ -2,11 +2,13 @@
 #define PAYLOAD_EXTRACT_PARTITIONWRITER_H
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "FileWriter.h"
 #include "PayloadInfo.h"
+#include "verify/VerifyWriter.h"
 
 namespace skkk {
 	class PartitionWriteContext {
@@ -38,9 +40,11 @@ namespace skkk {
 	};
 
 	class PartitionWriter {
+		std::mutex _mutex;
 		const std::shared_ptr<PayloadInfo> &payloadInfo;
 		const ExtractConfig &config;
 		std::vector<PartitionInfo> partitions;
+		std::shared_ptr<VerifyWriter> verifyWriter;
 
 		public:
 			explicit PartitionWriter(const std::shared_ptr<PayloadInfo> &payloadInfo);
@@ -60,6 +64,8 @@ namespace skkk {
 			static int initOutFd(const std::string &path, uint64_t fileSize, bool isReOpen = false);
 
 			const std::vector<PartitionInfo> &getPartitions();
+
+			std::shared_ptr<VerifyWriter> getVerifyWriter();
 
 			bool extractByInfo(const PartitionInfo &info) const;
 

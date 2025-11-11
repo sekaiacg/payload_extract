@@ -37,44 +37,44 @@ namespace skkk {
 	int FileWriter::commonWrite(const decompressPtr &decompress, int payloadBinFd, int outFd,
 	                            const FileOperation &operation) const {
 		int ret = -1;
-		auto *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
-		if (srcBuf) {
+		auto *srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+		if (srcData) {
 			if (httpDownload) {
-				ret = urlRead(srcBuf, operation);
+				ret = urlRead(srcData, operation);
 			} else {
-				ret = blobRead(payloadBinFd, srcBuf, operation.dataOffset, operation.dataLength);
+				ret = blobRead(payloadBinFd, srcData, operation.dataOffset, operation.dataLength);
 			}
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
 				auto *destBuf = static_cast<uint8_t *>(malloc(dst.dataLength));
 				if (destBuf) {
 					uint64_t outDestLength = dst.dataLength;
-					ret = decompress(srcBuf, operation.dataLength, destBuf, outDestLength);
+					ret = decompress(srcData, operation.dataLength, destBuf, outDestLength);
 					if (!ret) {
 						ret = blobWrite(outFd, destBuf, dst.dataOffset, dst.dataLength);
 					}
 					free(destBuf);
 				}
 			}
-			free(srcBuf);
+			free(srcData);
 		}
 		return ret;
 	}
 
 	int FileWriter::directWrite(int payloadFd, int outFd, const FileOperation &operation) const {
 		int ret = -1;
-		auto *srcBuf = static_cast<uint8_t *>(malloc(operation.dataLength));
-		if (srcBuf) {
+		auto *srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+		if (srcData) {
 			if (httpDownload) {
-				ret = urlRead(srcBuf, operation);
+				ret = urlRead(srcData, operation);
 			} else {
-				ret = blobRead(payloadFd, srcBuf, operation.dataOffset, operation.dataLength);
+				ret = blobRead(payloadFd, srcData, operation.dataOffset, operation.dataLength);
 			}
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
-				ret = blobWrite(outFd, srcBuf, dst.dataOffset, dst.dataLength);
+				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
 			}
-			free(srcBuf);
+			free(srcData);
 		}
 		return ret;
 	}
@@ -88,10 +88,10 @@ namespace skkk {
 	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
-		auto *srcBuf = static_cast<uint8_t *>(calloc(1, dst.dataLength));
-		if (srcBuf) {
-			ret = blobWrite(outFd, srcBuf, dst.dataOffset, dst.dataLength);
-			free(srcBuf);
+		auto *srcData = static_cast<uint8_t *>(calloc(1, dst.dataLength));
+		if (srcData) {
+			ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+			free(srcData);
 		}
 		return ret;
 	}
@@ -132,13 +132,13 @@ namespace skkk {
 	int FileWriter::sourceCopy(int inFd, int outFd, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
-		auto *srcBuf = static_cast<uint8_t *>(malloc(operation.srcTotalLength));
-		if (srcBuf) {
-			ret = extentsRead(inFd, srcBuf, operation.srcExtents);
+		auto *srcData = static_cast<uint8_t *>(malloc(operation.srcTotalLength));
+		if (srcData) {
+			ret = extentsRead(inFd, srcData, operation.srcExtents);
 			if (!ret) {
-				ret = blobWrite(outFd, srcBuf, dst.dataOffset, dst.dataLength);
+				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
 			}
-			free(srcBuf);
+			free(srcData);
 		}
 		return ret;
 	}
@@ -162,16 +162,16 @@ namespace skkk {
 				if (srcBuf) {
 					ret = extentsRead(inFd, srcBuf, operation.srcExtents);
 					if (!ret) {
-						std::vector<uint8_t> dstBuf;
-						dstBuf.reserve(operation.dstTotalLength * 2);
-						auto sink = [&dstBuf](const uint8_t *data, size_t len) {
-							dstBuf.insert(dstBuf.end(), data, data + len);
+						std::vector<uint8_t> patchedData;
+						patchedData.reserve(operation.dstTotalLength);
+						auto sink = [&patchedData](const uint8_t *data, size_t len) {
+							patchedData.insert(patchedData.end(), data, data + len);
 							return len;
 						};
 						ret = bsdiff::bspatch(srcBuf, srcTotalLength,
 						                      patchData, patchDataLength, sink);
 						if (!ret) {
-							ret = extentsWrite(outFd, dstBuf.data(), dsts);
+							ret = extentsWrite(outFd, patchedData.data(), dsts);
 						}
 					}
 					free(srcBuf);

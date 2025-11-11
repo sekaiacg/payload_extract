@@ -10,6 +10,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
+option(LIB_USE_MBEDTLS "Using MbedTLS with SHA256 or TSL. default: ON" ON)
 option(ENABLE_HTTP_CPR "Enable cpr HTTP download implementation. default: ON" ON)
 option(ENABLE_FULL_LTO "Enable full lto. default: OFF" OFF)
 option(BUILD_PAYLOAD_EXTRACT "Whether to compile the payload_extract? default: ON" ON)
@@ -53,6 +54,10 @@ set(GLOBAL_LDFLAGS_RELEASE)
 
 message(STATUS "[payload_extract] Build type is ${CMAKE_BUILD_TYPE}")
 
+if (LIB_USE_MBEDTLS)
+    list(APPEND GLOBAL_CFLAGS "-DLIB_USE_MBEDTLS")
+endif ()
+
 # OS link flags
 if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
     list(APPEND GLOBAL_CFLAGS "-fno-semantic-interposition")
@@ -87,6 +92,12 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions("-DNDEBUG" "-UDEBUG")
 elseif (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
     list(APPEND GLOBAL_CFLAGS "-O0" "-g" "-DDEBUG")
+endif ()
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|x86_64")
+    list(APPEND GLOBAL_CFLAGS "-msse4.2" "-msha")
+else (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    list(APPEND GLOBAL_CFLAGS "-march=armv8-a+crypto")
 endif ()
 
 add_compile_options(

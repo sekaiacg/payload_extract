@@ -1,9 +1,9 @@
 #ifndef PAYLOAD_EXTRACT_LOGPROGRESS_H
 #define PAYLOAD_EXTRACT_LOGPROGRESS_H
 
+#include <atomic>
 #include <cmath>
 #include <string>
-#include <atomic>
 
 namespace skkk {
 	static void progress(const char *tagPrefixFmt, const std::string &tag,

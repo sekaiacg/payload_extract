@@ -1,8 +1,8 @@
 #include "common/io.h"
-#include "payload/ZipParser.h"
 #include "payload/HttpDownload.h"
 #include "payload/LogBase.h"
 #include "payload/PayloadInfo.h"
+#include "payload/ZipParser.h"
 
 namespace skkk {
 	UrlPayloadInfo::UrlPayloadInfo(const ExtractConfig &config)

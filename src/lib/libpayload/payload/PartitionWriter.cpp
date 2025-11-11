@@ -1,6 +1,6 @@
 #include <algorithm>
-#include <cmath>
 #include <future>
+#include <memory>
 #include <ranges>
 
 #include "common/io.h"
@@ -88,6 +88,18 @@ namespace skkk {
 		return outFd;
 	}
 
+	const std::vector<PartitionInfo> &PartitionWriter::getPartitions() {
+		return partitions;
+	}
+
+	std::shared_ptr<VerifyWriter> PartitionWriter::getVerifyWriter() {
+		std::unique_lock lock{_mutex};
+		if (!verifyWriter) {
+			verifyWriter = std::make_shared<VerifyWriter>(partitions, config);
+		}
+		return verifyWriter;
+	}
+
 #define PRINT_PROGRESS_FMT \
 	BROWN2_BOLD "Extract: " COLOR_NONE "%s" \
 	GREEN2_BOLD "[ " COLOR_NONE RED2 "%2d%%" LOG_RESET_COLOR GREEN2_BOLD " ]" COLOR_NONE \
@@ -116,13 +128,13 @@ namespace skkk {
 		std::future<void> progressThread;
 		std::shared_ptr<std::atomic_int> extractProgress = info.extractProgress;
 		outFd = initOutFd(info.outFilePath, info.size);
-		if (outFd <= 0) {
+		if (outFd < 0) {
 			info.initExcInfoByInitFd(info.outFilePath, outFd);
 			goto exit;
 		}
 		if (config.isIncremental) {
 			inFd = initInFd(info.oldFilePath);
-			if (inFd <= 0) {
+			if (inFd < 0) {
 				info.initExcInfoByInitFd(info.oldFilePath, inFd);
 				goto exit;
 			}
@@ -156,20 +168,20 @@ namespace skkk {
 		auto isUrl = ctx.isUrl;
 		if (!isUrl) {
 			payloadFd = openFileRD(payloadPath);
-			if (payloadFd <= 0) {
+			if (payloadFd < 0) {
 				info.initExcInfoByInitFd(payloadPath, payloadFd);
 				return false;
 			}
 		}
 		if (isIncremental) {
 			inFd = PartitionWriter::initInFd(oldFilePath);
-			if (inFd <= 0) {
+			if (inFd < 0) {
 				info.initExcInfoByInitFd(oldFilePath, inFd);
 				return false;
 			}
 		}
 		outFd = PartitionWriter::initOutFd(outFilePath, info.size, true);
-		if (outFd <= 0) {
+		if (outFd < 0) {
 			info.initExcInfoByInitFd(outFilePath, outFd);
 			return false;
 		}
@@ -182,9 +194,9 @@ namespace skkk {
 		auto &fileWriter = ctx.fileWriter;
 		auto &operation = ctx.operation;
 		auto &extractProgress = info.extractProgress;
-		const auto &payloadFd = ctx.payloadFd;
-		const auto &inFd = ctx.inFd;
-		const auto &outFd = ctx.outFd;
+		auto &payloadFd = ctx.payloadFd;
+		auto &inFd = ctx.inFd;
+		auto &outFd = ctx.outFd;
 
 		if constexpr (ExtractConfig::isWin) {
 			if (!handleWinFd(ctx, info)) goto exit;
@@ -212,13 +224,13 @@ namespace skkk {
 
 		if constexpr (!ExtractConfig::isWin) {
 			outFd = initOutFd(info.outFilePath, info.size);
-			if (outFd <= 0) {
+			if (outFd < 0) {
 				info.initExcInfoByInitFd(info.outFilePath, outFd);
 				goto exit;
 			}
 			if (config.isIncremental) {
 				inFd = initInFd(info.oldFilePath);
-				if (inFd <= 0) {
+				if (inFd < 0) {
 					info.initExcInfoByInitFd(info.oldFilePath, inFd);
 					goto exit;
 				}
@@ -229,7 +241,7 @@ namespace skkk {
 		{
 			uint64_t opSize = info.operations.size();
 			std::vector<PartitionWriteContext> ctxs;
-			ctxs.reserve(std::floor(static_cast<float>(opSize) * 1.5));
+			ctxs.reserve(opSize);
 			std::threadpool tp(config.threadNum);
 			for (const auto &operation: info.operations) {
 				auto &ctx = ctxs.emplace_back(config.getPayloadPath(),

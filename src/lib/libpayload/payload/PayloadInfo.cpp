@@ -223,6 +223,5 @@ namespace skkk {
 
 	void PayloadInfo::closePayloadFile() {
 		closeFd(payloadFd);
-		payloadFd = -1;
 	}
 }

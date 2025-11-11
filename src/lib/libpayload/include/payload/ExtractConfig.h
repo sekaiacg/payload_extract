@@ -49,6 +49,7 @@ namespace skkk {
 #endif
 			bool isIncremental = false;
 			bool isExcludeMode = false;
+			bool isVerifyUpdate = false;
 			bool isSilent = false;
 			bool isUrl = false;
 			bool sslVerification = true;

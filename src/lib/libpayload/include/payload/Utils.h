@@ -12,6 +12,19 @@
 #include <vector>
 #include <sys/stat.h>
 
+template<typename T>
+constexpr T alignUp(T target, uint32_t size) {
+	return target + size - 1 & ~(size - 1);
+}
+
+constexpr uint64_t divRoundUp(uint64_t x, uint64_t y) {
+	return (x + y - 1) / y;
+}
+
+constexpr uint64_t roundUp(uint64_t x, uint64_t y) {
+	return divRoundUp(x, y) * y;
+}
+
 static std::string bytesToHexString(const uint8_t *bytes, uint32_t len) {
 	std::string result(len * 2, ' '); // 预分配空间
 	for (size_t i = 0; i < len; ++i) {

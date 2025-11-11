@@ -1,5 +1,6 @@
 include(libbspatch.cmake)
 include(libbz2.cmake)
+include(libfec_rs.cmake)
 include(libprotobuf-cpp-full.cmake)
 
 # BROTLI
@@ -30,20 +31,29 @@ set(ZSTD_MULTITHREAD_SUPPORT ON)
 set(DZSTD_LEGACY_SUPPORT ON)
 add_subdirectory("zstd/build/cmake" "zstd")
 
+# MbedTls
+if (LIB_USE_MBEDTLS)
+    set(MBEDTLS_VERSION 3.6.5)
+    include(FetchContent)
+    FetchContent_Declare(MbedTLS
+        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+        GIT_TAG v3.6.5
+        USES_TERMINAL_DOWNLOAD TRUE
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(MbedTLS)
+    include_directories(${CMAKE_BINARY_DIR}/_deps/mbedtls-build/include)
+endif ()
+
 #cpr
 if (ENABLE_HTTP_CPR)
     if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
-        set(CPR_FORCE_MBEDTLS_BACKEND ON)
-        # MbedTls
-        include(FetchContent)
-        FetchContent_Declare(MbedTLS
-            GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-            GIT_TAG v3.6.5
-            USES_TERMINAL_DOWNLOAD TRUE
-            OVERRIDE_FIND_PACKAGE
-        )
-        FetchContent_MakeAvailable(MbedTLS)
-        include_directories(${CMAKE_BINARY_DIR}/_deps/mbedtls-build/include)
+        if (LIB_USE_MBEDTLS)
+            set(CPR_FORCE_MBEDTLS_BACKEND ON)
+        else ()
+            set(CPR_FORCE_OPENSSL_BACKEND ON)
+            set(LIB_USE_OPENSSL ON)
+        endif ()
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         set(CPR_FORCE_DARWINSSL_BACKEND ON)
     elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
