@@ -13,29 +13,25 @@
 namespace skkk {
 	class PartitionWriteContext {
 		public:
-			const std::string &payloadPath;
 			const PartitionInfo &partitionInfo;
 			const FileWriter &fileWriter;
 			const FileOperation &operation;
-			mutable int payloadFd;
-			mutable int inFd;
-			mutable int outFd;
+			const uint8_t *payloadData;
+			const uint8_t *inData;
+			uint8_t *outData;
 			const bool isIncremental;
-			const bool isUrl;
 
 		public:
-			PartitionWriteContext(const std::string &payloadPath, const PartitionInfo &partitionInfo,
-			                      const FileWriter &fileWriter, const FileOperation &operation,
-			                      int payloadFd, int inFd, int outFd, bool isIncremental, bool isUrl)
-				: payloadPath(payloadPath),
-				  partitionInfo(partitionInfo),
+			PartitionWriteContext(const PartitionInfo &partitionInfo, const FileWriter &fileWriter,
+			                      const FileOperation &operation, const uint8_t *payloadData, const uint8_t *inData,
+			                      uint8_t *outData, bool isIncremental)
+				: partitionInfo(partitionInfo),
 				  fileWriter(fileWriter),
 				  operation(operation),
-				  payloadFd(payloadFd),
-				  inFd(inFd),
-				  outFd(outFd),
-				  isIncremental(isIncremental),
-				  isUrl(isUrl) {
+				  payloadData(payloadData),
+				  inData(inData),
+				  outData(outData),
+				  isIncremental(isIncremental) {
 			}
 	};
 

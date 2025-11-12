@@ -18,28 +18,30 @@ namespace skkk {
 
 			int urlRead(uint8_t *buf, const FileOperation &operation) const;
 
-			int commonWrite(const decompressPtr &decompress, int payloadBinFd, int outFd,
+			int commonWrite(const decompressPtr &decompress, const uint8_t *payloadData, uint8_t *outData,
 			                const FileOperation &operation) const;
 
-			int directWrite(int payloadFd, int outFd, const FileOperation &operation) const;
+			int directWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const;
 
-			int bzipWrite(int payloadFd, int outFd, const FileOperation &operation) const;
+			int bzipWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const;
 
-			static int zeroWrite(int payloadFd, int outFd, const FileOperation &operation);
+			static int zeroWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation);
 
-			int xzWrite(int payloadFd, int outFd, const FileOperation &operation) const;
+			int xzWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const;
 
-			int zstdWrite(int payloadFd, int outFd, const FileOperation &operation) const;
+			int zstdWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const;
 
-			static int extentsRead(int fd, uint8_t *data, const std::vector<Extent> &extents);
+			static int extentsRead(const uint8_t *inData, uint8_t *data, const std::vector<Extent> &extents);
 
-			static int extentsWrite(int fd, uint8_t *data, const std::vector<Extent> &extents);
+			static int extentsWrite(uint8_t *outData, const uint8_t *srcData, const std::vector<Extent> &extents);
 
-			static int sourceCopy(int inFd, int outFd, const FileOperation &operation);
+			static int sourceCopy(const uint8_t *inData, uint8_t *outData, const FileOperation &operation);
 
-			int brotliBSDiff(int payloadBinFd, int inFd, int outFd, const FileOperation &operation) const;
+			int brotliBSDiff(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
+			                 const FileOperation &operation) const;
 
-			int writeDataByType(int payloadBinFd, int inFd, int outFd, const FileOperation &operation) const;
+			int writeDataByType(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
+			                    const FileOperation &operation) const;
 	};
 }
 

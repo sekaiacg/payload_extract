@@ -1,9 +1,9 @@
 #include <cinttypes>
 #include <string>
 
-#include "common/defs.h"
-#include "common/io.h"
+#include "common/mmap.hpp"
 #include "payload/PayloadInfo.h"
+#include "payload/Utils.h"
 
 namespace skkk {
 	PayloadInfo::PayloadInfo(const ExtractConfig &config)
@@ -32,25 +32,26 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::initPayloadFile() {
-		const int fd = open(path.c_str(), O_RDONLY | O_BINARY);
-		if (fd < 0) {
-			LOGCE("failed to open(%s).\n", path.c_str());
+		int ret = mapRdByPath(payloadFd, path, payloadData, payloadDataSize);
+		if (!ret) {
+			if (payloadDataSize > 0 && payloadData) {
+				return true;
+			}
+			LOGCE("failed to mmap(%s).\n", path.c_str());
 			return false;
 		}
-		payloadFd = fd;
-		return true;
+		LOGCE("failed to open(%s).\n", path.c_str());
+		return false;
 	}
 
-	bool PayloadInfo::getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const {
-		return blobRead(payloadFd, data, pos, len) == 0;
+	bool PayloadInfo::getPayloadData(uint8_t *data, uint64_t offset, uint64_t length) const {
+		return memcpy(data, payloadData + offset, length) == data;
 	}
 
 	bool PayloadInfo::handleZipFile() {
-		uint8_t header[128] = {};
-		if (!getPayloadData(header, 0, PLH_SIZE)) return false;
-		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
+		if (memcmp(payloadData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
 
-		ZipParser zip{path, payloadFd};
+		ZipParser zip{payloadDataSize, payloadData};
 		if (zip.parse()) {
 			zipFiles = std::move(zip.files);
 			return true;
@@ -63,12 +64,12 @@ namespace skkk {
 			if (!zipFiles.empty()) {
 				const auto it = std::ranges::find(zipFiles, "payload.bin", &ZipFileItem::name);
 				if (it != zipFiles.end()) {
-					uint8_t buf[PLH_SIZE] = {};
-					if (!getPayloadData(buf, it->localHeaderOffset, PLH_SIZE)) {
+					uint8_t data[PLH_SIZE] = {};
+					if (!getPayloadData(data, it->localHeaderOffset, PLH_SIZE)) {
 						LOGCE("ZIP: Failed to connect to the server, please try again later.");
 						return false;
 					}
-					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(buf);
+					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(data);
 					const auto filenameSize = zlh->filenameLength;
 					const auto extraFieldSize = zlh->extraFieldLength;
 					if (zlh->compressionMethod == 0) {
@@ -134,6 +135,13 @@ namespace skkk {
 		}
 		LOGCE("failed to parse manifest");
 		return false;
+	}
+
+	const uint8_t *PayloadInfo::getPayloadData() const {
+		if (payloadData) {
+			return payloadData;
+		}
+		return nullptr;
 	}
 
 	bool PayloadInfo::parsePartitionInfo() {
@@ -222,6 +230,8 @@ namespace skkk {
 	}
 
 	void PayloadInfo::closePayloadFile() {
-		closeFd(payloadFd);
+		if (!unmap(payloadData, payloadDataSize)) {
+			closeFd(payloadFd);
+		}
 	}
 }

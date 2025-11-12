@@ -5,6 +5,7 @@
 
 #include "common/io.h"
 #include "common/LogProgress.h"
+#include "common/mmap.hpp"
 #include "common/threadpool.h"
 #include "payload/FileWriter.h"
 #include "payload/PartitionWriter.h"
@@ -121,28 +122,49 @@ namespace skkk {
 		}
 	}
 
-	bool PartitionWriter::extractByInfo(const PartitionInfo &info) const {
-		int inFd = -1, outFd = -1;
-		int payloadFd = payloadInfo->getPayloadFd();
-		FileWriter fw{config.httpDownload};
-		std::future<void> progressThread;
-		std::shared_ptr<std::atomic_int> extractProgress = info.extractProgress;
-		outFd = initOutFd(info.outFilePath, info.size);
+	static bool handleData(const PartitionInfo &info, bool isIncremental, int &inFd, int &outFd,
+	                       const uint8_t *&inData, uint64_t &inDataSize, uint8_t *&outData, uint64_t &outDataSize) {
+		int ret = -1;
+		if (isIncremental) {
+			ret = mapRdByPath(inFd, info.oldFilePath, inData, inDataSize);
+			if (ret) {
+				info.initExcInfoByInitFd(info.oldFilePath, inFd < 0 ? inFd : ret);
+				goto exit;
+			}
+		}
+		outFd = PartitionWriter::initOutFd(info.outFilePath, info.size);
 		if (outFd < 0) {
 			info.initExcInfoByInitFd(info.outFilePath, outFd);
 			goto exit;
 		}
-		if (config.isIncremental) {
-			inFd = initInFd(info.oldFilePath);
-			if (inFd < 0) {
-				info.initExcInfoByInitFd(info.oldFilePath, inFd);
-				goto exit;
-			}
+		ret = mapRwByPath(outFd, info.outFilePath, outData, outDataSize);
+		if (ret) {
+			info.initExcInfoByInitFd(info.outFilePath, outFd < 0 ? inFd : ret);
 		}
+	exit:
+		return !ret;
+	}
+
+	bool PartitionWriter::extractByInfo(const PartitionInfo &info) const {
+		int ret = -1, inFd = -1, outFd = -1;
+		const auto *payloadBinData = payloadInfo->getPayloadData();
+		FileWriter fw{config.httpDownload};
+		std::future<void> progressThread;
+		std::shared_ptr<std::atomic_int> extractProgress = info.extractProgress;
+		uint64_t inDataSize = 0;
+		const uint8_t *inData = nullptr;
+		uint64_t outDataSize = 0;
+		uint8_t *outData = nullptr;
+
+		if (!handleData(info, config.isIncremental, inFd, outFd,
+		                inData, inDataSize, outData, outDataSize)) {
+			goto exit;
+		}
+
 		progressThread = std::async(std::launch::async, printProgressMT, config.isSilent, info.name,
 		                            info.size, info.operations.size(), std::ref(*extractProgress), true);
 		for (const auto &operation: info.operations) {
-			int ret = fw.writeDataByType(payloadFd, inFd, outFd, operation);
+			ret = fw.writeDataByType(payloadBinData, inData, outData, operation);
 			if (ret) {
 				operation.initExcInfo(ret);
 			}
@@ -152,89 +174,43 @@ namespace skkk {
 		info.initExcInfos();
 
 	exit:
+		unmap(inData, inDataSize);
+		unmap(outData, outDataSize);
 		closeFd(inFd);
 		closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}
 
-	static bool handleWinFd(const PartitionWriteContext &ctx, const PartitionInfo &info) {
-		const auto &payloadPath = ctx.payloadPath;
-		const auto &oldFilePath = info.oldFilePath;
-		const auto &outFilePath = info.outFilePath;
-		auto &payloadFd = ctx.payloadFd;
-		auto &inFd = ctx.inFd;
-		auto &outFd = ctx.outFd;
-		auto isIncremental = ctx.isIncremental;
-		auto isUrl = ctx.isUrl;
-		if (!isUrl) {
-			payloadFd = openFileRD(payloadPath);
-			if (payloadFd < 0) {
-				info.initExcInfoByInitFd(payloadPath, payloadFd);
-				return false;
-			}
-		}
-		if (isIncremental) {
-			inFd = PartitionWriter::initInFd(oldFilePath);
-			if (inFd < 0) {
-				info.initExcInfoByInitFd(oldFilePath, inFd);
-				return false;
-			}
-		}
-		outFd = PartitionWriter::initOutFd(outFilePath, info.size, true);
-		if (outFd < 0) {
-			info.initExcInfoByInitFd(outFilePath, outFd);
-			return false;
-		}
-		return true;
-	}
-
 	static void extractTask(const PartitionWriteContext &ctx) {
 		int ret = -1;
-		auto &info = ctx.partitionInfo;
-		auto &fileWriter = ctx.fileWriter;
-		auto &operation = ctx.operation;
-		auto &extractProgress = info.extractProgress;
-		auto &payloadFd = ctx.payloadFd;
-		auto &inFd = ctx.inFd;
-		auto &outFd = ctx.outFd;
+		const auto &fileWriter = ctx.fileWriter;
+		const auto &operation = ctx.operation;
+		const auto &extractProgress = ctx.partitionInfo.extractProgress;
+		const auto *payloadData = ctx.payloadData;
+		const auto *inData = ctx.inData;
+		auto *outData = ctx.outData;
 
-		if constexpr (ExtractConfig::isWin) {
-			if (!handleWinFd(ctx, info)) goto exit;
-		}
-		ret = fileWriter.writeDataByType(payloadFd, inFd,
-		                                 outFd, operation);
+		ret = fileWriter.writeDataByType(payloadData, inData, outData, operation);
 		if (ret) {
 			operation.initExcInfo(ret);
 		}
-
-	exit:
 		++*extractProgress;
-		if constexpr (ExtractConfig::isWin) {
-			closeFd(payloadFd);
-			closeFd(inFd);
-			closeFd(outFd);
-		}
 	}
 
 	bool PartitionWriter::extractByInfoMT(const PartitionInfo &info) const {
-		int payloadFd = -1, inFd = -1, outFd = -1;
-		payloadFd = payloadInfo->getPayloadFd();
-		auto &extractProgress = info.extractProgress;
+		int inFd = -1, outFd = -1;
+		const auto payloadData = payloadInfo->getPayloadData();
+		const auto &extractProgress = info.extractProgress;
+		const auto isIncremental = config.isIncremental;
 		FileWriter fw{config.httpDownload};
+		uint64_t inDataSize = 0;
+		const uint8_t *inData = nullptr;
+		uint64_t outDataSize = 0;
+		uint8_t *outData = nullptr;
 
-		if constexpr (!ExtractConfig::isWin) {
-			outFd = initOutFd(info.outFilePath, info.size);
-			if (outFd < 0) {
-				info.initExcInfoByInitFd(info.outFilePath, outFd);
-				goto exit;
-			}
-			if (config.isIncremental) {
-				inFd = initInFd(info.oldFilePath);
-				if (inFd < 0) {
-					info.initExcInfoByInitFd(info.oldFilePath, inFd);
-					goto exit;
-				}
-			}
+		if (!handleData(info, config.isIncremental, inFd, outFd,
+		                inData, inDataSize, outData, outDataSize)) {
+			goto exit;
 		}
 
 		// wait
@@ -244,10 +220,8 @@ namespace skkk {
 			ctxs.reserve(opSize);
 			std::threadpool tp(config.threadNum);
 			for (const auto &operation: info.operations) {
-				auto &ctx = ctxs.emplace_back(config.getPayloadPath(),
-				                              info, fw, operation, payloadFd,
-				                              inFd, outFd, config.isIncremental,
-				                              config.isUrl);
+				auto &ctx = ctxs.emplace_back(info, fw, operation, payloadData,
+				                              inData, outData, isIncremental);
 				tp.commit(extractTask, std::ref(ctx));
 			}
 			printProgressMT(config.isSilent, info.name, info.size, opSize,
@@ -256,10 +230,10 @@ namespace skkk {
 		info.initExcInfos();
 
 	exit:
-		if constexpr (!ExtractConfig::isWin) {
-			closeFd(inFd);
-			closeFd(outFd);
-		}
+		unmap(inData, inDataSize);
+		unmap(outData, outDataSize);
+		closeFd(inFd);
+		closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}
 

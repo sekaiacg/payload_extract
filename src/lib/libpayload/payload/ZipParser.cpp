@@ -3,9 +3,9 @@
 #include "payload/ZipParser.h"
 
 namespace skkk {
-	ZipParser::ZipParser(const std::string &path, int inFileFd)
-		: path(path),
-		  inFileFd(inFileFd) {
+	ZipParser::ZipParser(uint64_t fileSize, const uint8_t *fileData)
+		: fileDataSize(fileSize),
+		  fileData(fileData) {
 	}
 
 	ZipParser::ZipParser(const std::shared_ptr<HttpDownload> &httpDownload)
@@ -17,14 +17,14 @@ namespace skkk {
 			FileBuffer fb{data, 0};
 			return httpDownload->download(fb, offset, len);
 		}
-		return blobRead(inFileFd, data, offset, len) == 0;
+		return memcpy(data, fileData + offset, len) == data;
 	}
 
 	uint64_t ZipParser::getZipFileSize() const {
 		if (httpDownload) {
 			return httpDownload->getFileSize();
 		}
-		return getFileSize(path);
+		return fileDataSize;
 	}
 
 	bool ZipParser::parse() {

@@ -18,6 +18,8 @@ namespace skkk {
 			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
+			uint64_t payloadDataSize = 0;
+			const uint8_t *payloadData = nullptr;
 			uint64_t fileBaseOffset = 0;
 
 		public:
@@ -41,7 +43,7 @@ namespace skkk {
 
 			virtual bool initPayloadFile();
 
-			bool getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const;
+			bool getPayloadData(uint8_t *data, uint64_t offset, uint64_t length) const;
 
 			virtual bool handleZipFile();
 
@@ -56,6 +58,8 @@ namespace skkk {
 			bool readHeaderData();
 
 			bool parseManifestData();
+
+			const uint8_t *getPayloadData() const;
 
 			bool parsePartitionInfo();
 

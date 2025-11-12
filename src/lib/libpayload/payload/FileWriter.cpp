@@ -34,133 +34,136 @@ namespace skkk {
 		goto retry;
 	}
 
-	int FileWriter::commonWrite(const decompressPtr &decompress, int payloadBinFd, int outFd,
+	int FileWriter::commonWrite(const decompressPtr &decompress, const uint8_t *payloadData, uint8_t *outData,
 	                            const FileOperation &operation) const {
 		int ret = -1;
-		auto *srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+		uint8_t *srcData = nullptr;
+		if (httpDownload) {
+			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+			ret = urlRead(srcData, operation);
+		} else {
+			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
+			ret = 0;
+		}
 		if (srcData) {
-			if (httpDownload) {
-				ret = urlRead(srcData, operation);
-			} else {
-				ret = blobRead(payloadBinFd, srcData, operation.dataOffset, operation.dataLength);
-			}
-			if (!ret) {
-				auto &dst = operation.dstExtents[0];
-				auto *destBuf = static_cast<uint8_t *>(malloc(dst.dataLength));
-				if (destBuf) {
-					uint64_t outDestLength = dst.dataLength;
-					ret = decompress(srcData, operation.dataLength, destBuf, outDestLength);
-					if (!ret) {
-						ret = blobWrite(outFd, destBuf, dst.dataOffset, dst.dataLength);
-					}
-					free(destBuf);
+			auto &dst = operation.dstExtents[0];
+			auto *destBuf = static_cast<uint8_t *>(malloc(dst.dataLength));
+			if (destBuf) {
+				uint64_t outDestLength = dst.dataLength;
+				ret = decompress(srcData, operation.dataLength, destBuf, outDestLength);
+				if (!ret) {
+					ret = memcpy(outData + dst.dataOffset, destBuf, dst.dataLength) ? 0 : -EIO;
 				}
+				free(destBuf);
 			}
-			free(srcData);
+			if (httpDownload) free(srcData);
 		}
 		return ret;
 	}
 
-	int FileWriter::directWrite(int payloadFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::directWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
 		int ret = -1;
-		auto *srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+		uint8_t *srcData = nullptr;
+		if (httpDownload) {
+			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+			ret = urlRead(srcData, operation);
+		} else {
+			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
+			ret = 0;
+		}
 		if (srcData) {
-			if (httpDownload) {
-				ret = urlRead(srcData, operation);
-			} else {
-				ret = blobRead(payloadFd, srcData, operation.dataOffset, operation.dataLength);
-			}
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
-				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+				ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
 			}
-			free(srcData);
+			if (httpDownload) free(srcData);
 		}
 		return ret;
 	}
 
-	int FileWriter::bzipWrite(int payloadFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::bzipWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
 		int ret = commonWrite(Decompress::bzipDecompress,
-		                      payloadFd, outFd, operation);
+		                      payloadData, outData, operation);
 		return ret;
 	}
 
-	int FileWriter::zeroWrite(int payloadFd, int outFd, const FileOperation &operation) {
+	int FileWriter::zeroWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
 		auto *srcData = static_cast<uint8_t *>(calloc(1, dst.dataLength));
 		if (srcData) {
-			ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
 			free(srcData);
 		}
 		return ret;
 	}
 
-	int FileWriter::xzWrite(int payloadFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::xzWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
 		int ret = commonWrite(Decompress::xzDecompress,
-		                      payloadFd, outFd, operation);
+		                      payloadData, outData, operation);
 		return ret;
 	}
 
-	int FileWriter::zstdWrite(int payloadFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::zstdWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
 		int ret = commonWrite(Decompress::zstdDecompress,
-		                      payloadFd, outFd, operation);
+		                      payloadData, outData, operation);
 		return ret;
 	}
 
-	int FileWriter::extentsRead(int fd, uint8_t *data, const std::vector<Extent> &extents) {
+	int FileWriter::extentsRead(const uint8_t *inData, uint8_t *data, const std::vector<Extent> &extents) {
 		int ret = -1;
 		for (const auto &e: extents) {
-			ret = blobRead(fd, data, e.dataOffset, e.dataLength);
+			ret = memcpy(data, inData + e.dataOffset, e.dataLength) == data ? 0 : -EIO;
 			if (ret) return ret;
 			data += e.dataLength;
 		}
 		return ret;
 	}
 
-	int FileWriter::extentsWrite(int fd, uint8_t *data, const std::vector<Extent> &extents) {
+	int FileWriter::extentsWrite(uint8_t *outData, const uint8_t *srcData, const std::vector<Extent> &extents) {
 		int ret = -1;
 		for (const auto &e: extents) {
-			ret = blobWrite(fd, data, e.dataOffset, e.dataLength);
+			ret = memcpy(outData + e.dataOffset, srcData, e.dataLength) ? 0 : -EIO;
 			if (ret) return ret;
-			data += e.dataLength;
+			srcData += e.dataLength;
 		}
 		return ret;
 	}
 
-	// TODO copy_file_range
-	int FileWriter::sourceCopy(int inFd, int outFd, const FileOperation &operation) {
+	int FileWriter::sourceCopy(const uint8_t *inData, uint8_t *outData, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
 		auto *srcData = static_cast<uint8_t *>(malloc(operation.srcTotalLength));
 		if (srcData) {
-			ret = extentsRead(inFd, srcData, operation.srcExtents);
+			ret = extentsRead(inData, srcData, operation.srcExtents);
 			if (!ret) {
-				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+				ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
 			}
 			free(srcData);
 		}
 		return ret;
 	}
 
-	int FileWriter::brotliBSDiff(int payloadBinFd, int inFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::brotliBSDiff(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
+	                             const FileOperation &operation) const {
 		int ret = -1;
 		auto &srcs = operation.srcExtents;
 		auto &dsts = operation.dstExtents;
-
 		uint64_t patchDataLength = operation.dataLength;
-		auto *patchData = static_cast<uint8_t *>(malloc(operation.dataLength));
+		uint8_t *patchData = nullptr;
+		if (httpDownload) {
+			patchData = static_cast<uint8_t *>(malloc(patchDataLength));
+			ret = urlRead(patchData, operation);
+		} else {
+			patchData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
+			ret = 0;
+		}
 		if (patchData) {
-			if (httpDownload) {
-				ret = urlRead(patchData, operation);
-			} else {
-				ret = blobRead(payloadBinFd, patchData, operation.dataOffset, patchDataLength);
-			}
 			if (!ret) {
 				uint64_t srcTotalLength = operation.srcTotalLength;
-				auto *srcBuf = static_cast<uint8_t *>(malloc(srcTotalLength));
-				if (srcBuf) {
-					ret = extentsRead(inFd, srcBuf, operation.srcExtents);
+				auto *srcData = static_cast<uint8_t *>(malloc(srcTotalLength));
+				if (srcData) {
+					ret = extentsRead(inData, srcData, operation.srcExtents);
 					if (!ret) {
 						std::vector<uint8_t> patchedData;
 						patchedData.reserve(operation.dstTotalLength);
@@ -168,44 +171,45 @@ namespace skkk {
 							patchedData.insert(patchedData.end(), data, data + len);
 							return len;
 						};
-						ret = bsdiff::bspatch(srcBuf, srcTotalLength,
+						ret = bsdiff::bspatch(srcData, srcTotalLength,
 						                      patchData, patchDataLength, sink);
 						if (!ret) {
-							ret = extentsWrite(outFd, patchedData.data(), dsts);
+							ret = extentsWrite(outData, patchedData.data(), dsts);
 						}
 					}
-					free(srcBuf);
+					free(srcData);
 				}
 			}
-			free(patchData);
+			if (httpDownload) free(patchData);
 		}
 
 		return ret;
 	}
 
-	int FileWriter::writeDataByType(int payloadBinFd, int inFd, int outFd, const FileOperation &operation) const {
+	int FileWriter::writeDataByType(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
+	                                const FileOperation &operation) const {
 		int ret = -1;
 		switch (operation.type) {
 			case InstallOperation_Type_REPLACE:
-				ret = directWrite(payloadBinFd, outFd, operation);
+				ret = directWrite(payloadData, outData, operation);
 				break;
 			case InstallOperation_Type_REPLACE_BZ:
-				ret = bzipWrite(payloadBinFd, outFd, operation);
+				ret = bzipWrite(payloadData, outData, operation);
 				break;
 			case InstallOperation_Type_SOURCE_COPY:
-				ret = sourceCopy(inFd, outFd, operation);
+				ret = sourceCopy(inData, outData, operation);
 				break;
 			case InstallOperation_Type_ZERO:
-				ret = zeroWrite(payloadBinFd, outFd, operation);
+				ret = zeroWrite(nullptr, outData, operation);
 				break;
 			case InstallOperation_Type_REPLACE_XZ:
-				ret = xzWrite(payloadBinFd, outFd, operation);
+				ret = xzWrite(payloadData, outData, operation);
 				break;
 			case InstallOperation_Type_BROTLI_BSDIFF:
-				ret = brotliBSDiff(payloadBinFd, inFd, outFd, operation);
+				ret = brotliBSDiff(payloadData, inData, outData, operation);
 				break;
 			case InstallOperation_Type_REPLACE_ZSTD:
-				ret = zstdWrite(payloadBinFd, outFd, operation);
+				ret = zstdWrite(payloadData, outData, operation);
 				break;
 			default:
 				ret = -1;

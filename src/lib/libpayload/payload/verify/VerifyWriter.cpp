@@ -4,6 +4,7 @@
 
 #include "common/io.h"
 #include "common/LogProgress.h"
+#include "common/mmap.hpp"
 #include "common/threadpool.h"
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
@@ -84,15 +85,6 @@ namespace skkk {
 		}
 	}
 
-	static bool hashTreeHandleWinFd(const VerifyWriterHashTreeContext &ctx, const VerifyInfo &info) {
-		auto &inFd = ctx.inFd;
-		inFd = openFileRD(info.outFilePath);
-		if (inFd < 0) {
-			return false;
-		}
-		return true;
-	}
-
 	static void sha256HashTreeTopLevelTask(const VerifyWriterHashTreeContext &ctx) {
 		int ret = -1;
 		const auto &info = ctx.verifyInfo;
@@ -102,37 +94,26 @@ namespace skkk {
 		const auto readFilePos = ctx.readFilePos;
 		const auto writeHashPos = ctx.writeHashPos;
 		auto *hashData = ctx.hashData;
-		auto &inFd = ctx.inFd;
 		const auto blockSize = info.blockSize;
 		const auto SALT_VERIFY_SIZE = ctx.saltVerifySize;
 		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
 		auto *sha256Data = origData.data();
 		auto *readData = sha256Data + SHA256_DIGEST_SIZE;
-		std::string a;
-		if constexpr (ExtractConfig::isWin) {
-			if (!hashTreeHandleWinFd(ctx, info)) {
-				ret = inFd;
-				goto exit;
-			}
-		}
+
 		memcpy(sha256Data, hashTreeSalt, SHA256_DIGEST_SIZE);
-		ret = blobRead(inFd, readData, readFilePos, blockSize);
+		ret = memcpy(readData, ctx.inData + readFilePos, blockSize) == readData ? 0 : -EIO;
 		if (ret) goto exit;
 		if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
 			ret = -EIO;
-			goto exit;
 		}
 
 	exit:
-		if (ret) {
-			++*excSize;
-		}
+		if (ret) ++*excSize;
 		++*calcProgress;
-		if constexpr (ExtractConfig::isWin) closeFd(inFd);
 	}
 
 	bool VerifyWriter::handleHashTreeDataByInfo(const VerifyInfo &info) const {
-		int inFd = -1;
+		int ret = 0, inFd = -1;
 		uint64_t readPos = 0, writeHashPos = 0;
 		std::future<void> progressThread;
 		const auto &currentProgress = info.hashTreeProgress;
@@ -147,13 +128,13 @@ namespace skkk {
 		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
 		auto *sha256Data = origData.data();
 		auto *readData = sha256Data + SHA256_DIGEST_SIZE;
+		uint64_t inDataSize = 0;
+		const uint8_t *inData = nullptr;
 		memcpy(sha256Data, info.hashTreeSalt.data(), SHA256_DIGEST_SIZE);
 
-		if constexpr (!ExtractConfig::isWin) {
-			inFd = openFileRD(info.outFilePath);
-			if (inFd < 0) {
-				goto exit;
-			}
+		ret = mapRdByPath(inFd, info.outFilePath, inData, inDataSize);
+		if (ret) {
+			goto exit;
 		}
 
 		// wait
@@ -162,7 +143,7 @@ namespace skkk {
 			ctxs.reserve(topLevel.blockCount);
 			std::threadpool tp{config.threadNum};
 			while (readPos < info.hashTreeDataExtentSize) {
-				auto &ctx = ctxs.emplace_back(info, inFd, readPos,
+				auto &ctx = ctxs.emplace_back(info, inData, readPos,
 				                              writeHashPos, preHashData, SALT_VERIFY_SIZE);
 				tp.commit(sha256HashTreeTopLevelTask, std::ref(ctx));
 				readPos += blockSize;
@@ -196,7 +177,9 @@ namespace skkk {
 
 	exit:
 		if (progressThread.valid()) progressThread.wait();
-		if constexpr (!ExtractConfig::isWin) closeFd(inFd);
+		if (ret) ++*hashTreeExcSize;
+		unmap(inData, inDataSize);
+		closeFd(inFd);
 		return info.checkCalcHashTreeSuccessful();
 	}
 
@@ -220,15 +203,6 @@ namespace skkk {
 		return !ret;
 	}
 
-	static bool fecHandleWinFd(const VerifyWriterFecContext &ctx, const VerifyInfo &info) {
-		auto &inFd = ctx.inFd;
-		inFd = openFileRD(info.outFilePath);
-		if (inFd < 0) {
-			return false;
-		}
-		return true;
-	}
-
 	/**
 	 * Reference: https://android.googlesource.com/platform/system/update_engine/+/refs/heads/main/payload_consumer/verity_writer_android.cc#328
 	 *
@@ -243,11 +217,11 @@ namespace skkk {
 		const auto fecRsn = info.fecRsn;
 		const auto dataSize = info.fecDataExtentSize;
 		const auto blockSize = info.blockSize;
-		auto &inFd = ctx.inFd;
+		const auto *inData = ctx.inData;
 		const auto roundsIdx = ctx.roundsIdx;
 		const auto rounds = info.fecRounds;
 		const auto dataOffset = info.fecDataExtentOffset;
-		auto fecWriteOffset = roundsIdx * blockSize * fecRoots;
+		const auto fecWriteOffset = roundsIdx * blockSize * fecRoots;
 		auto *fecData = ctx.fecData;
 		const uint32_t rsBlockSize = blockSize * fecRsn;
 
@@ -257,19 +231,11 @@ namespace skkk {
 		std::vector<uint8_t> bufferData(blockSize);
 		auto *buffer = bufferData.data();
 
-		if constexpr (ExtractConfig::isWin) {
-			if (!fecHandleWinFd(ctx, info)) {
-				++*fecExcSize;
-				goto exit;
-			}
-		}
-
 		for (size_t j = 0; j < fecRsn; j++) {
 			uint64_t offset =
 					fec_ecc_interleave(roundsIdx * fecRsn * blockSize + j, fecRsn, rounds);
 			if (offset < dataSize) {
-				ret = blobRead(inFd, buffer,
-				               dataOffset + offset, blockSize);
+				ret = memcpy(buffer, inData + dataOffset + offset, blockSize) == buffer ? 0 : -EIO;
 				if (ret) {
 					++*fecExcSize;
 					goto exit;
@@ -290,23 +256,24 @@ namespace skkk {
 
 	exit:
 		++*currentProgress;
-		if constexpr (ExtractConfig::isWin) closeFd(inFd);
 	}
 
 
 	bool VerifyWriter::handleFecDataByInfo(const VerifyInfo &info) const {
-		int inFd = -1;
+		int ret = 0, inFd = -1;
 		const auto fecDataSize = info.fecDataSize;
 		const auto fecRoots = info.fecRoots;
 		const auto fecRounds = info.fecRounds;
 		const auto &currentProgress = info.fecProgress;
+		auto &fecExcSize = info.fecExcSize;
+		const uint8_t *inData = nullptr;
+		uint64_t inDataSize = 0;
 
-		if constexpr (!ExtractConfig::isWin) {
-			inFd = openFileRD(info.outFilePath);
-			if (inFd < 0) {
-				goto exit;
-			}
+		ret = mapRdByPath(inFd, info.outFilePath, inData, inDataSize);
+		if (ret) {
+			goto exit;
 		}
+
 		if (fecDataSize == fec_ecc_get_data_size(info.fecDataExtentSize, fecRoots)) {
 			//wait
 			{
@@ -314,7 +281,7 @@ namespace skkk {
 				ctxs.reserve(fecRounds);
 				std::threadpool tp{config.threadNum};
 				for (int i = 0; i < fecRounds; i++) {
-					auto &ctx = ctxs.emplace_back(info, inFd, const_cast<uint8_t *>(info.fecData.data()), i);
+					auto &ctx = ctxs.emplace_back(info, const_cast<uint8_t *>(info.fecData.data()), inData, i);
 					tp.commit(encodeFecTask, std::ref(ctx));
 				}
 				printProgressMT(config.isSilent, info.name, FEC_FMT,
@@ -323,7 +290,9 @@ namespace skkk {
 		}
 
 	exit:
-		if constexpr (!ExtractConfig::isWin) closeFd(inFd);
+		if (ret) ++*fecExcSize;
+		unmap(inData, inDataSize);
+		closeFd(inFd);
 		return info.checkCalcFecSuccessful();
 	}
 
@@ -334,6 +303,7 @@ namespace skkk {
 			goto exit;
 		}
 		ret = blobWrite(outFd, info.fecData.data(), info.fecDataOffset, info.fecDataSize);
+
 	exit:
 		closeFd(outFd);
 		return !ret;
