@@ -30,6 +30,7 @@ namespace skkk {
 		if (httpDownload->download(fb, operation.dataOffset, operation.dataLength)) {
 			return 0;
 		}
+		fb.offset = 0;
 		std::this_thread::sleep_for(std::chrono::milliseconds(getRdWaitTime()));
 		goto retry;
 	}
