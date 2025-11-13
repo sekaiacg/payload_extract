@@ -7,7 +7,6 @@ namespace skkk {
 		this->cprUrl = url;
 		this->sslVerification = sslVerification;
 		cprHeader = cpr::Header{
-			{"Connection", "close"},
 			{
 				"User-Agent",
 				"Dalvik/2.1.0 (Linux; U; Android 15; RMX5010 Build/AP3A.240617.008)"
@@ -33,6 +32,7 @@ namespace skkk {
 		session.SetConnectTimeout(connectTimeout);
 		session.SetLowSpeed(lowSpeed);
 		session.SetAcceptEncoding(cpr::AcceptEncoding{"disabled"});
+		session.SetConnectionPool(connectionPool);
 		if (startsWithIgnoreCase(cprUrl.c_str(), "https")) {
 			session.SetVerifySsl(sslVerification);
 			if (sslVerification) {
@@ -73,6 +73,7 @@ namespace skkk {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
+
 		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataStr,
 			reinterpret_cast<intptr_t>(&data)
@@ -96,6 +97,7 @@ namespace skkk {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
+
 		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataFb,
 			reinterpret_cast<intptr_t>(&fb)

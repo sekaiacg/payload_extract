@@ -11,7 +11,7 @@ namespace skkk {
 			uint32_t offset = 0;
 
 		public:
-			FileBuffer(uint8_t *data, const uint32_t offset);
+			FileBuffer(uint8_t *data, uint64_t offset);
 
 			~FileBuffer() { data = nullptr; }
 	};

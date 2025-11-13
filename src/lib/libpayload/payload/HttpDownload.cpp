@@ -2,7 +2,7 @@
 #include "payload/LogBase.h"
 
 namespace skkk {
-	FileBuffer::FileBuffer(uint8_t *data, const uint32_t offset)
+	FileBuffer::FileBuffer(uint8_t *data, uint64_t offset)
 		: data(data), offset(offset) {
 	}
 

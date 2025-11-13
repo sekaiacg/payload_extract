@@ -64,61 +64,34 @@ namespace skkk {
 	}
 
 	bool UrlPayloadInfo::handleOffset() {
-		if (handleZipFile()) {
-			if (!zipFiles.empty()) {
-				const auto it = std::ranges::find(zipFiles, "payload.bin", &ZipFileItem::name);
-				if (it != zipFiles.end()) {
-					uint8_t data[PLH_SIZE] = {};
-					auto header = reinterpret_cast<uint8_t *>(&data);
-					FileBuffer fb{header, 0};
-					if (!download(fb, it->localHeaderOffset, PLH_SIZE)) {
-						LOGCE("URL: Failed to connect to the server, please try again later.");
-						return false;
-					}
-					const auto *zlh = reinterpret_cast<ZipLocalHeader *>(header);
-					const auto filenameSize = zlh->filenameLength;
-					const auto extraFieldSize = zlh->extraFieldLength;
-					if (it->compression == 0) {
-						fileBaseOffset = it->localHeaderOffset + PLH_SIZE + filenameSize + extraFieldSize;
-						return true;
-					}
-					LOGCE("URL: payload.bin format error!");
-					return false;
-				}
-				LOGCE("URL: payload.bin not found!");
+		auto *data = static_cast<uint8_t *>(malloc(headerDataSize));
+		if (data) {
+			FileBuffer fb{data, 0};
+			if (!download(fb, 0, headerDataSize)) {
+				LOGCE("URL: Failed to connect to the server, please try again later.");
 				return false;
 			}
-		}
-		return true;
-	}
-
-	bool UrlPayloadInfo::parseHeader() {
-		std::string data;
-		if (download(data, fileBaseOffset, kMaxPayloadHeaderSize)) {
-			return pHeader.parseHeader(reinterpret_cast<uint8_t *>(data.data()));
-		}
-		return false;
-	}
-
-	bool UrlPayloadInfo::readManifestData() {
-		auto &payloadBinOffset = pHeader.inPayloadBinOffset;
-		const auto manifestSize = pHeader.manifestSize;
-		auto *manifest = static_cast<uint8_t *>(malloc(manifestSize));
-		if (manifest) {
-			FileBuffer fb = {manifest, 0};
-			if (download(fb, fileBaseOffset + payloadBinOffset,
-			             manifestSize)) {
-				pHeader.manifest = manifest;
-				payloadBinOffset += manifestSize;
+			if (memcmp(data, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
+				if (initPayloadOffsetByZip(data)) {
+					data = static_cast<uint8_t *>(realloc(data, payloadMetadataSize));
+					if (data) {
+						fb.data = data;
+						fb.offset = 0;
+						if (!download(fb, payloadOffset, payloadMetadataSize)) {
+							LOGCE("URL: Failed to connect to the server, please try again later.");
+							return false;
+						}
+						payloadMetadata = data;
+						return true;
+					}
+				}
+			}
+			if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
 				return true;
 			}
 		}
-		return false;
-	}
 
-	bool UrlPayloadInfo::readMetadataSignatureMessage() {
-		// Skip manifest signature message
-		pHeader.inPayloadBinOffset += pHeader.metadataSignatureSize;
-		return true;
+		LOGCE("URL: payload.bin not found!");
+		return false;
 	}
 }

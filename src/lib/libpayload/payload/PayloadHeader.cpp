@@ -51,7 +51,7 @@ namespace skkk {
 
 	bool PayloadHeader::parseHeader(const uint8_t *data) {
 		PayloadHeader &header = *this;
-		uint64_t &pos = header.inPayloadBinOffset;
+		uint64_t &pos = header.inPayloadOffset;
 		if (!parseMagic(header, data, pos)) goto out;
 		if (!parseFileFormatVersion(header, data, pos)) goto out;
 		if (!parseManifestSize(header, data, pos)) goto out;

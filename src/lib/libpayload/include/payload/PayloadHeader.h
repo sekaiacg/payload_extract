@@ -26,7 +26,7 @@ namespace skkk {
 
 	class PayloadHeader {
 		public:
-			uint64_t inPayloadBinOffset = 0;
+			uint64_t inPayloadOffset = 0;
 			char magic[4] = {};
 			uint64_t fileFormatVersion = VERSION_0; // payload major version
 			uint64_t manifestSize = 0; // Size of protobuf DeltaArchiveManifest

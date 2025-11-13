@@ -1,6 +1,9 @@
 #ifndef PAYLOAD_EXTRACT_PAYLOADINFO_H
 #define PAYLOAD_EXTRACT_PAYLOADINFO_H
 
+#include <string>
+#include <string_view>
+
 #include "ExtractConfig.h"
 #include "HttpDownload.h"
 #include "PartitionInfo.h"
@@ -15,12 +18,17 @@ namespace skkk {
 
 	class PayloadInfo {
 		protected:
+			static constexpr std::string_view metadataName{"META-INF/com/android/metadata"};
+			static constexpr std::string_view findPrefixStr{"ota-property-files="};
+			static constexpr uint32_t headerDataSize = 8192;
 			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
-			uint64_t payloadDataSize = 0;
-			const uint8_t *payloadData = nullptr;
-			uint64_t fileBaseOffset = 0;
+			uint64_t fileDataSize = 0;
+			const uint8_t *fileData = nullptr;
+			uint64_t payloadOffset = 0;
+			uint64_t payloadMetadataSize = 0;
+			const uint8_t *payloadMetadata = nullptr;
 
 		public:
 			std::vector<ZipFileItem> zipFiles;
@@ -39,21 +47,21 @@ namespace skkk {
 
 			int getPayloadFd() const;
 
-			uint64_t getFileBaseOffset() const;
+			uint64_t getPayloadOffset() const;
 
 			virtual bool initPayloadFile();
 
-			bool getPayloadData(uint8_t *data, uint64_t offset, uint64_t length) const;
-
 			virtual bool handleZipFile();
+
+			bool initPayloadOffsetByZip(uint8_t *data);
 
 			virtual bool handleOffset();
 
-			virtual bool parseHeader();
+			bool parseHeader();
 
-			virtual bool readMetadataSignatureMessage();
+			bool readMetadataSignatureMessage();
 
-			virtual bool readManifestData();
+			bool readManifestData();
 
 			bool readHeaderData();
 
@@ -84,12 +92,6 @@ namespace skkk {
 			bool handleZipFile() override;
 
 			bool handleOffset() override;
-
-			bool parseHeader() override;
-
-			bool readManifestData() override;
-
-			bool readMetadataSignatureMessage() override;
 	};
 }
 
