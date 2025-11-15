@@ -103,7 +103,7 @@ namespace skkk {
 		if (fileDataSize >= headerDataSize) {
 			uint8_t data[headerDataSize] = {};
 			if (memcpy(data, fileData, headerDataSize) == data) {
-				if (memcmp(fileData, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
+				if (memcmp(fileData, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
 					if (initPayloadOffsetByZip(data)) {
 						return true;
 					}

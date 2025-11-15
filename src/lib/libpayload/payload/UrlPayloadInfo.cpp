@@ -53,7 +53,7 @@ namespace skkk {
 		}
 		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
 
-		if (memcmp(header, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
+		if (memcmp(header, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
 			ZipParser zip{config.httpDownload};
 			if (zip.parse()) {
 				zipFiles = std::move(zip.files);
@@ -71,7 +71,7 @@ namespace skkk {
 				LOGCE("URL: Failed to connect to the server, please try again later.");
 				return false;
 			}
-			if (memcmp(data, ZLP_LOCAL_FILE_HEADER_MAGIC, ZLP_LOCAL_FILE_HEADER_SIZE) == 0) {
+			if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
 				if (initPayloadOffsetByZip(data)) {
 					data = static_cast<uint8_t *>(realloc(data, payloadMetadataSize));
 					if (data) {
@@ -86,6 +86,7 @@ namespace skkk {
 					}
 				}
 			}
+			free(data);
 			if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
 				return true;
 			}

@@ -15,8 +15,8 @@ namespace skkk {
 	static constexpr char PAYLOAD_MAGIC[] = "CrAU";
 	static constexpr uint32_t PAYLOAD_MAGIC_SIZE = 4;
 	static constexpr uint32_t PLH_SIZE = 30;
-	static constexpr uint8_t ZLP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
-	static constexpr uint32_t ZLP_LOCAL_FILE_HEADER_SIZE = 4;
+	static constexpr uint8_t ZIP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
+	static constexpr uint32_t ZIP_LOCAL_FILE_HEADER_SIZE = 4;
 
 	enum file_format_version {
 		VERSION_0,
