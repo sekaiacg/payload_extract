@@ -56,6 +56,12 @@ namespace skkk {
 		}
 	}
 
+	void CprHttpDownload::setUrl(const std::string &url) {
+		std::string tmp{url};
+		strTrim(tmp);
+		this->cprUrl = tmp;
+	}
+
 	uint64_t CprHttpDownload::getFileSize() const {
 		cpr::Session session;
 		initSession(session);
@@ -69,7 +75,7 @@ namespace skkk {
 		return true;
 	}
 
-	bool CprHttpDownload::download(std::string &data, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> CprHttpDownload::download(std::string &data, uint64_t offset, uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
@@ -80,10 +86,10 @@ namespace skkk {
 		});
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
 		    r.downloaded_bytes == length) {
-			return true;
+			return {true, r.status_code};;
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
-		return false;
+		return {false, r.status_code};
 	}
 
 	static bool writeDataFb(const std::string_view &data, intptr_t userdata) {
@@ -93,7 +99,7 @@ namespace skkk {
 		return true;
 	}
 
-	bool CprHttpDownload::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> CprHttpDownload::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
@@ -104,13 +110,14 @@ namespace skkk {
 		});
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
 		    r.downloaded_bytes == length) {
-			return true;
+			return {true, r.status_code};
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
-		return false;
+		return {false, r.status_code};
 	}
 
-	bool CprHttpDownload::download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> CprHttpDownload::download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset,
+	                                                 uint64_t length) const {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
@@ -125,9 +132,9 @@ namespace skkk {
 
 		if (r.status_code == 206 && r.error.code == cpr::ErrorCode::OK &&
 		    r.downloaded_bytes == length) {
-			return true;
+			return {true, r.status_code};
 		}
 		LOGCD("download failed hc=%d msg=%s", r.status_code, r.error.message.c_str());
-		return false;
+		return {false, r.status_code};;
 	}
 }

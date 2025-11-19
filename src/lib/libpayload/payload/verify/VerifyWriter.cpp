@@ -2,13 +2,13 @@
 #include <iostream>
 #include <ranges>
 
-#include "common/io.h"
 #include "common/LogProgress.h"
-#include "common/mmap.hpp"
 #include "common/threadpool.h"
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
 #include "payload/Utils.h"
+#include "payload/common/io.h"
+#include "payload/mman/mmap.hpp"
 #include "payload/verify/VerifyWriter.h"
 
 #include "ecc.h"

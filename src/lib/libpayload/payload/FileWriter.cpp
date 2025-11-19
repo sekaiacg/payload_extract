@@ -2,11 +2,12 @@
 #include <thread>
 #include <bsdiff/bspatch.h>
 
-#include "common/io.h"
 #include "decompress/Decompress.h"
 #include "payload/FileWriter.h"
 #include "payload/HttpDownload.h"
 #include "payload/update_metadata.pb.h"
+#include "payload/Utils.h"
+#include "payload/common/io.h"
 
 using namespace chromeos_update_engine;
 
@@ -27,7 +28,7 @@ namespace skkk {
 		FileBuffer fb{buf, 0};
 
 	retry:
-		if (httpDownload->download(fb, operation.dataOffset, operation.dataLength)) {
+		if (std::get<0>(httpDownload->download(fb, operation.dataOffset, operation.dataLength))) {
 			return 0;
 		}
 		fb.offset = 0;

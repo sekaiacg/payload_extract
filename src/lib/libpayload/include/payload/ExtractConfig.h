@@ -52,6 +52,7 @@ namespace skkk {
 			bool isVerifyUpdate = false;
 			bool isSilent = false;
 			bool isUrl = false;
+			bool remoteUpdate = false;
 			bool sslVerification = true;
 			uint32_t threadNum = 0;
 			uint32_t hardwareConcurrency = std::thread::hardware_concurrency();

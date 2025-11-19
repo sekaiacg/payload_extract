@@ -4,13 +4,13 @@
 #include <memory>
 #include <ranges>
 
-#include "common/io.h"
 #include "common/LogProgress.h"
-#include "common/mmap.hpp"
 #include "common/threadpool.h"
 #include "payload/FileWriter.h"
 #include "payload/PartitionWriter.h"
 #include "payload/Utils.h"
+#include "payload/common/io.h"
+#include "payload/mman/mmap.hpp"
 
 namespace skkk {
 	PartitionWriter::PartitionWriter(const std::shared_ptr<PayloadInfo> &payloadInfo)

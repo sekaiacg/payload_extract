@@ -1,5 +1,5 @@
-#include "defs.h"
-#include "io.h"
+#include "payload/Utils.h"
+#include "payload/common/io.h"
 
 namespace skkk {
 	int openFileRD(const std::string &path) {
@@ -69,6 +69,20 @@ namespace skkk {
 
 	int blobFallocate(int fd, off64_t offset, off64_t length) {
 		int ret = payload_fallocate(fd, FALLOC_FL_ZERO_RANGE, offset, length);
+		return ret;
+	}
+
+	bool readToString(const std::string &filePath, std::string &result) {
+		int ret = -1, inFd = -1;
+		inFd = openFileRD(filePath);
+		if (inFd > 0) {
+			uint64_t size = getFileSize(filePath);
+			if (size > 0) {
+				result.resize(size, 0);
+				ret = blobRead(inFd, result.data(), 0, size) == 0;
+			}
+			closeFd(inFd);
+		}
 		return ret;
 	}
 }

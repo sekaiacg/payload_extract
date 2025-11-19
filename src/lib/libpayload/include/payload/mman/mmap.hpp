@@ -1,5 +1,5 @@
-#ifndef PAYLOAD_EXTRACT_IO_HPP
-#define PAYLOAD_EXTRACT_IO_HPP
+#ifndef PAYLOAD_EXTRACT_MMAP_HPP
+#define PAYLOAD_EXTRACT_MMAP_HPP
 
 #include <cerrno>
 #if !defined(_WIN32)
@@ -66,4 +66,4 @@ namespace skkk {
 	}
 }
 
-#endif //PAYLOAD_EXTRACT_IO_HPP
+#endif //PAYLOAD_EXTRACT_MMAP_HPP

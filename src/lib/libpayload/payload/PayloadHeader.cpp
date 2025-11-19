@@ -7,7 +7,7 @@ namespace skkk {
 	template<typename T>
 	void readValueFromBytes(T &value, const uint8_t *data, uint64_t &pos) {
 		auto tmp = *reinterpret_cast<const T *>(data + pos);
-		const int size = sizeof(T);
+		constexpr uint32_t size = sizeof(T);
 		switch (size) {
 			case 2:
 				value = be16toh(tmp);

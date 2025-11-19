@@ -12,11 +12,12 @@
 #include <payload/verify/VerifyWriter.h>
 
 #include "ExtractOperation.h"
+#include "RemoteUpdater.h"
 
 using namespace skkk;
 
 static void usage(const ExtractOperation &eo) {
-	char buf[1536] = {};
+	char buf[4096] = {};
 	snprintf(buf, sizeof(buf) - 1,
 			 BROWN "usage: [options]" COLOR_NONE "\n"
 			 "  " GREEN2_BOLD "-h, --help" COLOR_NONE "           " BROWN "Display this help and exit" COLOR_NONE "\n"
@@ -36,6 +37,8 @@ static void usage(const ExtractOperation &eo) {
 	         "  " GREEN2_BOLD "-T#" COLOR_NONE "                  " BROWN "[" GREEN2_BOLD "1-%u" COLOR_NONE BROWN "] Use # threads, default: -T0, is " GREEN2_BOLD "%u" COLOR_NONE COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-k" COLOR_NONE "                   " BROWN "Skip SSL verification" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-o, --outdir=X" COLOR_NONE "       " BROWN "Output dir" COLOR_NONE "\n"
+	         "  " GREEN2_BOLD "-R" COLOR_NONE "                   " BROWN "Modify the URL in the remote config" COLOR_NONE "\n"
+	         "  "             "               "            "      " BROWN "  May need to specify the output directory" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-V, --version" COLOR_NONE "        " BROWN "Print the version info" COLOR_NONE "\n",
 	         eo.limitHardwareConcurrency,
 	         eo.hardwareConcurrency
@@ -70,7 +73,7 @@ static option argOptions[] = {
 static int parseExtractOperation(const int argc, char **argv, ExtractOperation &eo) {
 	int opt, ret = RET_EXTRACT_CONFIG_FAIL;
 	bool enterCheckOpt = false;
-	while ((opt = getopt_long(argc, argv, "ehi:ko:pst:xP:T:VX:", argOptions, nullptr)) != -1) {
+	while ((opt = getopt_long(argc, argv, "ehi:ko:pst:xP:T:VX:R", argOptions, nullptr)) != -1) {
 		enterCheckOpt = true;
 		switch (opt) {
 			case 'h':
@@ -130,6 +133,10 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 					}
 				}
 				break;
+			case 'R':
+				eo.remoteUpdate = true;
+				LOGCD("remoteUpdate=%d", eo.remoteUpdate);
+				break;
 			case 200:
 				eo.isIncremental = true;
 				if (optarg) {
@@ -162,6 +169,9 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 
 		eo.handleUrl();
 		LOGCD("isUrl=%d", eo.isUrl);
+
+		eo.initHttpDownload();
+		LOGCD("httpDownload=%d", eo.httpDownload != nullptr);
 
 		if (eo.payloadType != PAYLOAD_TYPE_URL) {
 			if (!fileExists(eo.getPayloadPath())) {
@@ -255,6 +265,7 @@ int main(const int argc, char *argv[]) {
 	// Config
 	ExtractOperation eo;
 	PayloadParser payloadParser;
+	std::shared_ptr<RemoteUpdater> ru;
 	std::shared_ptr<PartitionWriter> pw;
 	std::shared_ptr<VerifyWriter> vw;
 	if (parseExtractOperation(argc, argv, eo) != RET_EXTRACT_CONFIG_DONE) {
@@ -262,8 +273,16 @@ int main(const int argc, char *argv[]) {
 		goto exit;
 	}
 
-	// Http download implement
-	eo.httpDownload = eo.getHttpDownloadImpl();
+	// RemoteUpdater
+	ru = std::make_shared<RemoteUpdater>(eo);
+	if (eo.remoteUpdate) {
+		if (!ru->initRemoteUpdate(false)) {
+			ret = RET_EXTRACT_INIT_FAIL;
+			goto exit;
+		}
+		ru->notifyRemoteUpdate();
+		goto exit;
+	}
 
 	// Parse payload.bin
 	if (!payloadParser.parse(eo)) {
@@ -297,6 +316,15 @@ int main(const int argc, char *argv[]) {
 			ret = RET_EXTRACT_CREATE_DIR_FAIL;
 			goto exit;
 		}
+
+		if (eo.isUrl) {
+			if (!ru->initRemoteUpdate(true)) {
+				ret = RET_EXTRACT_INIT_FAIL;
+				goto exit;
+			}
+			ru->startMonitor();
+		}
+
 		pw->extractPartitions();
 
 		if (eo.isIncremental && eo.isVerifyUpdate) {

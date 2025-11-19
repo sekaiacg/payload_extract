@@ -45,6 +45,11 @@ namespace skkk {
 		payloadType = isUrl ? PAYLOAD_TYPE_URL : PAYLOAD_TYPE_BIN;
 	}
 
+	void ExtractOperation::initHttpDownload() {
+		// Http download implement
+		httpDownload = getHttpDownloadImpl();
+	}
+
 	int ExtractOperation::createExtractOutDir() const {
 		int rc = RET_EXTRACT_DONE;
 		if (!dirExists(outDir)) {

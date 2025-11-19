@@ -1,9 +1,9 @@
 #include <cinttypes>
 #include <string>
 
-#include "common/mmap.hpp"
 #include "payload/PayloadInfo.h"
 #include "payload/Utils.h"
+#include "payload/mman/mmap.hpp"
 
 namespace skkk {
 	PayloadInfo::PayloadInfo(const ExtractConfig &config)

@@ -32,9 +32,10 @@ namespace skkk {
 
 			void handleUrl();
 
+			void initHttpDownload();
+
 			int createExtractOutDir() const;
 	};
 }
-
 
 #endif //PAYLOAD_EXTRACT_EXTRACTOPERATION_H

@@ -24,7 +24,7 @@ endif ()
 check_fun(libpayload_function_list)
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/config/libpayload_config.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/config.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/libpayload_config.h"
 )
 
 file(GLOB PAYLOAD_COMMON_SRCS "${TARGET_SRC_DIR}/common/*.cpp")
@@ -49,7 +49,7 @@ set(PAYLOAD_SRCS
 )
 
 add_library(${TARGET} STATIC ${PAYLOAD_SRCS})
-target_precompile_headers(${TARGET} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+target_precompile_headers(${TARGET} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/libpayload_config.h")
 target_include_directories(${TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(${TARGET}
     PRIVATE

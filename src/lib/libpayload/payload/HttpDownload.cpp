@@ -1,5 +1,6 @@
 #include "payload/HttpDownload.h"
 #include "payload/LogBase.h"
+#include "payload/Utils.h"
 
 namespace skkk {
 	FileBuffer::FileBuffer(uint8_t *data, uint64_t offset)
@@ -10,24 +11,31 @@ namespace skkk {
 		LOGE("The HttpDownload class is not implemented.");
 	}
 
+	void HttpDownload::setUrl(const std::string &url) {
+		std::string tmp{url};
+		strTrim(tmp);
+		this->url = tmp;
+	}
+
 	uint64_t HttpDownload::getFileSize() const {
 		LOGE("The getFileSize() method is not implemented.");
 		return 0;
 	}
 
-	bool HttpDownload::download(std::string &data, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> HttpDownload::download(std::string &data, uint64_t offset, uint64_t length) const {
 		LOGE("The download(std::string, uint64_t offset, uint64_t length) is not implemented.");
-		return false;
+		return {false, -1};
 	}
 
-	bool HttpDownload::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> HttpDownload::download(FileBuffer &fb, uint64_t offset, uint64_t length) const {
 		LOGE("The download(FileBuffer &fb, uint64_t offset, uint64_t length) is not implemented.");
-		return false;
+		return {false, -1};
 	}
 
-	bool HttpDownload::download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset, uint64_t length) const {
+	std::tuple<bool, long> HttpDownload::download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset,
+	                                              uint64_t length) const {
 		LOGE(
 			"The download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset, uint64_t length) is not implemented.");
-		return false;
+		return {false, -1};
 	}
 }

@@ -2,6 +2,7 @@
 #define PAYLOAD_EXTRACT_HTTP_DOWNLOAD_H
 
 #include <cinttypes>
+#include <tuple>
 #include <string>
 
 namespace skkk {
@@ -28,15 +29,17 @@ namespace skkk {
 
 			virtual ~HttpDownload() = default;
 
+			virtual void setUrl(const std::string &url);
+
 			virtual uint64_t getFileSize() const;
 
-			virtual bool download(std::string &data, uint64_t offset, uint64_t length) const;
+			virtual std::tuple<bool, long> download(std::string &data, uint64_t offset, uint64_t length) const;
 
 
-			virtual bool download(FileBuffer &fb, uint64_t offset, uint64_t length) const;
+			virtual std::tuple<bool, long> download(FileBuffer &fb, uint64_t offset, uint64_t length) const;
 
-			virtual bool download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset,
-			                      uint64_t length) const;
+			virtual std::tuple<bool, long> download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset,
+			                                        uint64_t length) const;
 	};
 }
 
