@@ -12,9 +12,8 @@
 
 **Help:**
 
-```
-payload_extract --help
-
+```console
+$ payload_extract --help
 usage: [options]
   -h, --help           Display this help and exit
   -i, --input=[PATH]   File path or URL
@@ -36,9 +35,8 @@ usage: [options]
   -V, --version        Print the version info
 ```
 
-```
-  payload_extract -V
-
+```console
+$ payload_extract -V
   payload_extract:     v0.0.0-0000000000
   author:              skkk
 ```
@@ -47,63 +45,60 @@ usage: [options]
 
 - Extract the full payload.bin(zip/url)
 
-```
-./payload_extract -i payload.bin -o ./full -x
+```console
+$ ./payload_extract -i payload.bin -o ./full -x
 ```
 
 - Extract the specified image from the full payload.bin
 
-```
-./payload_extract -i payload.bin -o ./full -X boot,odm,system
+```console
+$ ./payload_extract -i payload.bin -o ./full -X boot,odm,system
 ```
 
 - Extract all images files except **boot** from the full payload.bin
 
-```
-./payload_extract -i payload.bin -o ./full -X boot -e
+```console
+$ ./payload_extract -i payload.bin -o ./full -X boot -e
 ```
 
 - Extract all images(Perform verify-update) from incremental payload.bin
 
-```
-The `full` directory contains a complete extraction
-and verification(verify-update) of the previous payload.bin
-
-./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -x --verify-update
+The `full` directory contains a complete extraction and verification(verify-update) of the previous payload.bin
+```console
+$ ./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -x --verify-update
 ```
 
 - Extract all images(Do not perform verify-update) from incremental payload.bin
 
-```
-./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -x
+```console
+$ ./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -x
 ```
 
 - Extract the **boot** and **odm** images(Do not perform verify-update) from incremental payload.bin
   and calculate the SHA256.
 
-```
-./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -X boot,odm
+```console
+$ ./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -X boot,odm
 
-sha256sum ./full_patched/boot.img
+$ sha256sum ./full_patched/boot.img
 d19c097ea9240712a4652df86f3911a721242f275dd32c5ab5b474f5d01528a8  ./full_patched/boot.img
 ```
 
 - Output the SHA256 of the **boot** image from the incremental payload.bin
 
-```
-./payload_extract -i payload.bin -P boot
-
+```console
+$ ./payload_extract -i payload.bin -P boot
 PartitionSize:  55 MinorVersion:  9 SecurityPatchLevel: 2025-10-01
 name: boot               size: 100663296    sha256: 73fc2ce02d6b6b3f4bef6419b99e09d1e5ea690edaa0b80adced20f13730f3f6
 ```
 
 - _**verify-update**_ the **boot** and **odm** images from incremental payload.bin
-  and calculate the SHA256
+  and calculate the **SHA256**
 
-```
-./payload_extract -i payload.bin --incremental ./full -o ./full_patched --verify-update=boot,odm
+```console
+$ ./payload_extract -i payload.bin --incremental ./full -o ./full_patched --verify-update=boot,odm
 
-sha256sum ./full_patched/boot
+$ sha256sum ./full_patched/boot
 73fc2ce02d6b6b3f4bef6419b99e09d1e5ea690edaa0b80adced20f13730f3f6  ./full_patched/boot.img
 ```
 
