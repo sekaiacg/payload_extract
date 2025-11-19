@@ -21,6 +21,7 @@ namespace skkk {
 		ret = httpDownload->download(data, offset, length);
 		if (!ret) {
 			if (retryCount < 3) {
+				data.clear();
 				retryCount++;
 				LOGCD("URL: download failed, retry: %d", retryCount);
 				goto retry;
