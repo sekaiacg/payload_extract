@@ -18,7 +18,7 @@ namespace skkk {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload->download(data, offset, length);
+		ret = std::get<0>(httpDownload->download(data, offset, length));
 		if (!ret) {
 			if (retryCount < 3) {
 				data.clear();
@@ -34,7 +34,7 @@ namespace skkk {
 		bool ret = false;
 		int retryCount = 0;
 	retry:
-		ret = httpDownload->download(fb, offset, length);
+		ret = std::get<0>(httpDownload->download(fb, offset, length));
 		if (!ret) {
 			if (retryCount < 3) {
 				retryCount++;

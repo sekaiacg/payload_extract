@@ -21,6 +21,8 @@ namespace skkk {
 	int blobWrite(int fd, const void *data, uint64_t offset, uint64_t length);
 
 	int blobFallocate(int fd, off64_t offset, off64_t length);
+
+	bool readToString(const std::string &filePath, std::string &result);
 }
 
 #endif //PAYLOAD_EXTRACT_IO_H

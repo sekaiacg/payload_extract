@@ -15,7 +15,7 @@ namespace skkk {
 	bool ZipParser::getFileData(uint8_t *data, uint64_t offset, uint64_t len) const {
 		if (httpDownload) {
 			FileBuffer fb{data, 0};
-			return httpDownload->download(fb, offset, len);
+			return std::get<0>(httpDownload->download(fb, offset, len));
 		}
 		return memcpy(data, fileData + offset, len) == data;
 	}

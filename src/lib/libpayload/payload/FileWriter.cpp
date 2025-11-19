@@ -7,6 +7,7 @@
 #include "payload/FileWriter.h"
 #include "payload/HttpDownload.h"
 #include "payload/update_metadata.pb.h"
+#include "payload/Utils.h"
 
 using namespace chromeos_update_engine;
 
@@ -19,18 +20,32 @@ namespace skkk {
 		return randomWaitTime(mt);
 	}
 
-	FileWriter::FileWriter(const std::shared_ptr<HttpDownload> &httpDownload)
+	static void handleUrlReplace(const std::shared_ptr<HttpDownload> &httpDownload, const std::string &urlFilePath) {
+		if (fileExists(urlFilePath)) {
+			std::string result;
+			if (readToString(urlFilePath, result)
+			    && startsWithIgnoreCase(result, "http")) {
+				strTrim(result);
+				httpDownload->setUrl(result);
+			}
+		}
+	}
+
+	FileWriter::FileWriter(const std::shared_ptr<HttpDownload> &httpDownload, const std::string &outDir)
 		: httpDownload(httpDownload) {
+		this->urlFilePath = outDir + "/url.txt";
 	}
 
 	int FileWriter::urlRead(uint8_t *buf, const FileOperation &operation) const {
 		FileBuffer fb{buf, 0};
 
 	retry:
-		if (httpDownload->download(fb, operation.dataOffset, operation.dataLength)) {
+		auto [ret, statusCode] = httpDownload->download(fb, operation.dataOffset, operation.dataLength);
+		if (ret) {
 			return 0;
 		}
 		fb.offset = 0;
+		if (statusCode == 403) handleUrlReplace(httpDownload, urlFilePath);
 		std::this_thread::sleep_for(std::chrono::milliseconds(getRdWaitTime()));
 		goto retry;
 	}

@@ -12,9 +12,10 @@ namespace skkk {
 		                                        uint8_t *dest, uint64_t destSize)>;
 
 		const std::shared_ptr<HttpDownload> &httpDownload;
+		std::string urlFilePath;
 
 		public:
-			FileWriter(const std::shared_ptr<HttpDownload> &httpDownload);
+			FileWriter(const std::shared_ptr<HttpDownload> &httpDownload, const std::string &outDir);
 
 			int urlRead(uint8_t *buf, const FileOperation &operation) const;
 

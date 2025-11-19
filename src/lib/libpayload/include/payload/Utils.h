@@ -26,7 +26,7 @@ constexpr uint64_t roundUp(uint64_t x, uint64_t y) {
 }
 
 static std::string bytesToHexString(const uint8_t *bytes, uint32_t len) {
-	std::string result(len * 2, ' '); // 预分配空间
+	std::string result(len * 2, ' ');
 	for (size_t i = 0; i < len; ++i) {
 		constexpr const char *charTable = "0123456789abcdef";
 		result[i * 2] = charTable[bytes[i] >> 4 & 0xF];
@@ -43,15 +43,15 @@ static uint64_t getFileSize(const std::string &dirPath) {
 	return 0;
 }
 
-static bool dirExists(const std::string &dirPath) {
+static bool dirExists(const std::string &path) {
 	struct stat st = {};
-	if (stat(dirPath.c_str(), &st) == 0) {
+	if (stat(path.c_str(), &st) == 0) {
 		return S_ISDIR(st.st_mode);
 	}
 	return false;
 }
 
-static bool fileExists(const std::string_view &filePath) {
+static bool fileExists(const std::string &filePath) {
 	struct stat st = {};
 
 	if (stat(filePath.data(), &st) == 0) {

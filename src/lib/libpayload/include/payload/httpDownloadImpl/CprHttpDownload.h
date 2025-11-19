@@ -26,13 +26,16 @@ namespace skkk {
 
 			void initSession(cpr::Session &session) const;
 
+			void setUrl(const std::string &url) override;
+
 			uint64_t getFileSize() const override;
 
-			bool download(std::string &data, uint64_t offset, uint64_t length) const override;
+			std::tuple<bool, long> download(std::string &data, uint64_t offset, uint64_t length) const override;
 
-			bool download(FileBuffer &fb, uint64_t offset, uint64_t length) const override;
+			std::tuple<bool, long> download(FileBuffer &fb, uint64_t offset, uint64_t length) const override;
 
-			bool download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset, uint64_t length) const override;
+			std::tuple<bool, long> download(FileBuffer &fb, uint64_t fbDataOffset, uint64_t offset,
+			                                uint64_t length) const override;
 	};
 }
 

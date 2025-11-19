@@ -148,7 +148,7 @@ namespace skkk {
 	bool PartitionWriter::extractByInfo(const PartitionInfo &info) const {
 		int ret = -1, inFd = -1, outFd = -1;
 		const auto *payloadBinData = payloadInfo->getPayloadData();
-		FileWriter fw{config.httpDownload};
+		FileWriter fw{config.httpDownload, config.getOutDir()};
 		std::future<void> progressThread;
 		std::shared_ptr<std::atomic_int> extractProgress = info.extractProgress;
 		uint64_t inDataSize = 0;
@@ -202,7 +202,7 @@ namespace skkk {
 		const auto payloadData = payloadInfo->getPayloadData();
 		const auto &extractProgress = info.extractProgress;
 		const auto isIncremental = config.isIncremental;
-		FileWriter fw{config.httpDownload};
+		FileWriter fw{config.httpDownload, config.getOutDir()};
 		uint64_t inDataSize = 0;
 		const uint8_t *inData = nullptr;
 		uint64_t outDataSize = 0;
