@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cmath>
 #include <string>
+#include <unistd.h>
 
 namespace skkk {
 	static void progress(const char *tagPrefixFmt, const std::string &tag,
