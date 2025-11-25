@@ -12,7 +12,7 @@
 #include "io.h"
 
 namespace skkk {
-	inline uint8_t *mapByFd(int fd, uint64_t size, bool isRDOnly) {
+	inline void *mapByFd(int fd, uint64_t size, bool isRDOnly) {
 		auto *data = static_cast<uint8_t *>(mmap(nullptr, size, isRDOnly ? PROT_READ : PROT_READ | PROT_WRITE,
 		                                         isRDOnly ? MAP_PRIVATE : MAP_SHARED, fd, 0));
 		if (data != MAP_FAILED) {
@@ -47,7 +47,7 @@ namespace skkk {
 		}
 		if (fd > 0) {
 			dataSize = getFileSize(path);
-			data = mapByFd(fd, dataSize, isRDOnly);
+			data = static_cast<T *>(mapByFd(fd, dataSize, isRDOnly));
 			if (!(dataSize > 0 && data)) {
 				ret = -EIO;
 			}
