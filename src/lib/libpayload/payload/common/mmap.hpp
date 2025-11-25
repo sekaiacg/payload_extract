@@ -52,7 +52,7 @@ namespace skkk {
 				ret = -EIO;
 			}
 		} else {
-			ret = fd;
+			ret = -errno;
 		}
 		return ret;
 	}

@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include "payload/PayloadParser.h"
 
 namespace skkk {
@@ -11,6 +13,7 @@ namespace skkk {
 					info = std::make_shared<PayloadInfo>(config);
 					break;
 				case PAYLOAD_TYPE_URL:
+					if (!config.httpDownload) throw std::runtime_error("httpDownload not found!");
 					info = std::make_shared<UrlPayloadInfo>(config);
 					break;
 				default: {
@@ -25,15 +28,19 @@ namespace skkk {
 		return false;
 	}
 
+	static void throwNoInit() {
+		throw std::runtime_error("PayloadParser is not initialized!");
+	}
+
 	std::shared_ptr<PayloadInfo> PayloadParser::getPayloadInfo() {
 		std::unique_lock lock(_mutex);
-		if (!initialized) return nullptr;
+		if (!initialized) throwNoInit();
 		return payloadInfo;
 	}
 
 	std::shared_ptr<PartitionWriter> PayloadParser::getPartitionWriter() {
 		std::unique_lock lock(_mutex);
-		if (!initialized) return nullptr;
+		if (!initialized) throwNoInit();
 		return partitionWriter;
 	}
 }

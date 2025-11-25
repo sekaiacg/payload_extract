@@ -8,7 +8,7 @@
 #include <atomic>
 #include <future>
 #include <functional>
-// #include <stdexcept>
+#include <stdexcept>
 
 #ifdef _WIN32 // windows
 #else // linux
@@ -65,8 +65,8 @@ namespace std {
 			// 一种是用   mem_fn： .commit(std::mem_fn(&Dog::sayHello), this)
 			template<class F, class... Args>
 			auto commit(F &&f, Args &&... args) -> future<decltype(f(args...))> {
-				// if (!_run) // stoped ??
-				// 	throw std::runtime_error("commit on ThreadPool is stopped.");
+				if (!_run) // stoped ??
+					throw std::runtime_error("commit on ThreadPool is stopped.");
 
 				using RetType = decltype(f(args...)); // typename std::result_of<F(Args...)>::type, 函数 f 的返回值类型
 				auto task = make_shared<packaged_task<RetType()> >(

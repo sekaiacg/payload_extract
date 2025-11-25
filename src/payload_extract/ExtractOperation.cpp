@@ -1,3 +1,5 @@
+#include <cerrno>
+
 #include <payload/LogBase.h>
 #include <payload/Utils.h>
 
@@ -48,7 +50,7 @@ namespace skkk {
 		if (!dirExists(outDir)) {
 			if (mkdirs(outDir.c_str(), 0755)) {
 				rc = RET_EXTRACT_CREATE_DIR_FAIL;
-				LOGCE("create out dir fail: '%s'", outDir.c_str());
+				LOGCE("create out dir fail: '%s'(%s)", outDir.c_str(), strerror(errno));
 			}
 		}
 		return rc;

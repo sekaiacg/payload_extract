@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cerrno>
 #include <future>
 #include <memory>
 #include <ranges>
@@ -58,7 +59,7 @@ namespace skkk {
 		auto &outDir = payloadInfo->getConfig().getOldDir();
 		if (!dirExists(outDir)) {
 			if (mkdirs(outDir.c_str(), 0755)) {
-				LOGCE("create out dir fail: '%s'", outDir.c_str());
+				LOGCE("create out dir fail: '%s'(%s)", outDir.c_str(), strerror(errno));
 				return false;
 			}
 		}
@@ -128,7 +129,7 @@ namespace skkk {
 		if (isIncremental) {
 			ret = mapRdByPath(inFd, info.oldFilePath, inData, inDataSize);
 			if (ret) {
-				info.initExcInfoByInitFd(info.oldFilePath, inFd < 0 ? inFd : ret);
+				info.initExcInfoByInitFd(info.oldFilePath, ret);
 				goto exit;
 			}
 		}
@@ -139,7 +140,7 @@ namespace skkk {
 		}
 		ret = mapRwByPath(outFd, info.outFilePath, outData, outDataSize);
 		if (ret) {
-			info.initExcInfoByInitFd(info.outFilePath, outFd < 0 ? inFd : ret);
+			info.initExcInfoByInitFd(info.outFilePath, ret);
 		}
 	exit:
 		return !ret;
