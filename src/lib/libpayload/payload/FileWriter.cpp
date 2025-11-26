@@ -42,10 +42,9 @@ namespace skkk {
 		uint8_t *srcData = nullptr;
 		if (httpDownload) {
 			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
-			ret = urlRead(srcData, operation);
+			urlRead(srcData, operation);
 		} else {
 			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
-			ret = 0;
 		}
 		if (srcData) {
 			auto &dst = operation.dstExtents[0];
@@ -68,16 +67,13 @@ namespace skkk {
 		uint8_t *srcData = nullptr;
 		if (httpDownload) {
 			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
-			ret = urlRead(srcData, operation);
+			urlRead(srcData, operation);
 		} else {
 			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
-			ret = 0;
 		}
 		if (srcData) {
-			if (!ret) {
-				auto &dst = operation.dstExtents[0];
-				ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
-			}
+			auto &dst = operation.dstExtents[0];
+			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
 			if (httpDownload) free(srcData);
 		}
 		return ret;
@@ -155,32 +151,29 @@ namespace skkk {
 		uint8_t *patchData = nullptr;
 		if (httpDownload) {
 			patchData = static_cast<uint8_t *>(malloc(patchDataLength));
-			ret = urlRead(patchData, operation);
+			urlRead(patchData, operation);
 		} else {
 			patchData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
-			ret = 0;
 		}
 		if (patchData) {
-			if (!ret) {
-				uint64_t srcTotalLength = operation.srcTotalLength;
-				auto *srcData = static_cast<uint8_t *>(malloc(srcTotalLength));
-				if (srcData) {
-					ret = extentsRead(inData, srcData, operation.srcExtents);
+			uint64_t srcTotalLength = operation.srcTotalLength;
+			auto *srcData = static_cast<uint8_t *>(malloc(srcTotalLength));
+			if (srcData) {
+				ret = extentsRead(inData, srcData, operation.srcExtents);
+				if (!ret) {
+					std::vector<uint8_t> patchedData;
+					patchedData.reserve(operation.dstTotalLength);
+					auto sink = [&patchedData](const uint8_t *data, size_t len) {
+						patchedData.insert(patchedData.end(), data, data + len);
+						return len;
+					};
+					ret = bsdiff::bspatch(srcData, srcTotalLength,
+					                      patchData, patchDataLength, sink);
 					if (!ret) {
-						std::vector<uint8_t> patchedData;
-						patchedData.reserve(operation.dstTotalLength);
-						auto sink = [&patchedData](const uint8_t *data, size_t len) {
-							patchedData.insert(patchedData.end(), data, data + len);
-							return len;
-						};
-						ret = bsdiff::bspatch(srcData, srcTotalLength,
-						                      patchData, patchDataLength, sink);
-						if (!ret) {
-							ret = extentsWrite(outData, patchedData.data(), dsts);
-						}
+						ret = extentsWrite(outData, patchedData.data(), dsts);
 					}
-					free(srcData);
 				}
+				free(srcData);
 			}
 			if (httpDownload) free(patchData);
 		}
