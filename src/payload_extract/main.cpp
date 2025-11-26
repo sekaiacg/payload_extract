@@ -211,9 +211,9 @@ exit:
 	return ret;
 }
 
-static void printOperationTime(struct timeval *start, struct timeval *end) {
+static void printOperationTime(const timeval *start, const timeval *end) {
 	LOGCI(GREEN2_BOLD "The operation took: " COLOR_NONE RED2 "%.3f" COLOR_NONE "%s",
-	      (end->tv_sec - start->tv_sec) + (float) (end->tv_usec - start->tv_usec) / 1000000,
+	      (end->tv_sec - start->tv_sec) + static_cast<float>(end->tv_usec - start->tv_usec) / 1000000,
 	      GREEN2_BOLD " second(s)." COLOR_NONE
 	);
 }
@@ -248,6 +248,7 @@ static void enableWinTerminalColor(DWORD handle) {
 
 int main(const int argc, char *argv[]) {
 	int ret = RET_EXTRACT_DONE;
+	bool err = false;
 	timeval start{}, end{};
 
 #if defined(_WIN32)
@@ -294,9 +295,14 @@ int main(const int argc, char *argv[]) {
 	pw = payloadParser.getPartitionWriter();
 
 	if (!eo.getTargetName().empty()) {
-		ret = pw->initPartitionsByTarget();
+		err = pw->initPartitionsByTarget();
 	} else if (eo.isPrintAll || eo.isExtractAll) {
-		ret = pw->initPartitions();
+		err = pw->initPartitions();
+	}
+	if (!err) {
+		ret = RET_EXTRACT_INIT_PART_FAIL;
+		LOGCE("Cannot find the image file to be extracted!");
+		goto exit;
 	}
 
 	// VerifyWriter
@@ -311,7 +317,7 @@ int main(const int argc, char *argv[]) {
 	LOGCI(GREEN2_BOLD "Starting..." COLOR_NONE);
 
 	if (eo.isExtractAll || eo.isExtractTarget) {
-		bool err = eo.createExtractOutDir();
+		err = eo.createExtractOutDir();
 		if (err) {
 			ret = RET_EXTRACT_CREATE_DIR_FAIL;
 			goto exit;
