@@ -242,6 +242,10 @@ namespace skkk {
 	bool PartitionWriter::extractByPartitionByName(const std::string &name) {
 		auto it = std::ranges::find(partitions, name, &PartitionInfo::name);
 		if (it != partitions.end()) {
+			const auto threadNum = config.threadNum;
+			if (threadNum > 1) {
+				return extractByInfoMT(*it);
+			}
 			return extractByInfo(*it);
 		}
 		return false;
