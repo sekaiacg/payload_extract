@@ -29,9 +29,12 @@ usage: [options]
   -X, --extract=X      Extract the specified targets: [boot,odm,...]
   -e                   Exclude mode, exclude specific targets
   -s                   Silent mode, Don't show progress
-  -T#                  [1-X] Use # threads, default: -T0, is 1/3
+  -T#                  [1-X] Use # threads, default: -T0, is X/3
   -k                   Skip SSL verification
   -o, --outdir=X       Output dir
+  --out-config=X       Output config file, One config per line: [boot:/path/to/xxx]
+  -R                   Modify the URL in the remote config
+                         May need to specify the output directory
   -V, --version        Print the version info
 ```
 
@@ -64,6 +67,7 @@ $ ./payload_extract -i payload.bin -o ./full -X boot -e
 - Extract all images(Perform verify-update) from incremental payload.bin
 
 The `full` directory contains a complete extraction and verification(verify-update) of the previous payload.bin
+
 ```console
 $ ./payload_extract -i payload.bin  --incremental ./full -o ./full_patched -x --verify-update
 ```
@@ -101,6 +105,32 @@ $ ./payload_extract -i payload.bin --incremental ./full -o ./full_patched --veri
 $ sha256sum ./full_patched/boot
 73fc2ce02d6b6b3f4bef6419b99e09d1e5ea690edaa0b80adced20f13730f3f6  ./full_patched/boot.img
 ```
+
+<details>
+<summary><b>More examples</b></summary>
+
+- The **URL** can be modified during extraction.
+
+```console
+$ ./payload_extract -i "https://xxx.com" -o ./full -X boot
+Remote : https://aaa.com
+
+$ ./payload_extract -i "https://aaa.com" -o ./full -R
+Remote : Update successful!
+```
+
+- Custom output path(The **directory** must exist)
+
+```console
+$ cat ./config.txt
+boot:./full/output_boot/boot.img
+odm:./full/output_odm/odm.img
+vendor:./full/output_vendor/vendor.img
+
+$ ./payload_extract -i payload.bin -o ./full -X boot --out-config=./config.txt
+```
+
+</details>
 
 **You can use [extract.erofs](https://github.com/sekaiacg/erofs-utils/releases) to continue extracting data from the erofs format image.**
 
