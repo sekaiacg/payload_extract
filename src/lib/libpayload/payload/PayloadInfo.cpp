@@ -179,6 +179,7 @@ namespace skkk {
 		const auto minorVersion = manifest.minor_version();
 		const uint64_t offset = payloadOffset + pHeader.inPayloadOffset;
 		const auto blockSize = pHeader.blockSize;
+		const auto &outConfig = config.getOutConfig();
 
 		pHeader.partitionSize = partitionsSize;
 		pHeader.minorVersion = minorVersion;
@@ -189,7 +190,10 @@ namespace skkk {
 			const auto &npi = pu.new_partition_info();
 			const auto &partName = pu.partition_name();
 
-			std::string outFilePath = config.getOutDir() + "/" + partName + ".img";
+			const auto &name = outConfig.find(partName);
+			std::string outFilePath{
+				name != outConfig.end() ? name->second : config.getOutDir() + "/" + partName + ".img"
+			};
 
 			auto &partInfo = partitionInfoMap.emplace(std::piecewise_construct, std::forward_as_tuple(partName),
 			                                          std::forward_as_tuple(partName, npi.size(),

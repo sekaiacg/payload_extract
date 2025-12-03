@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <string>
+#include <vector>
 
 #include "ioDefs.h"
 
@@ -23,6 +24,8 @@ namespace skkk {
 	int blobFallocate(int fd, off64_t offset, off64_t length);
 
 	bool readToString(const std::string &filePath, std::string &result);
+
+	bool readAllLines(const std::string &filePath, std::vector<std::string> &result);
 }
 
 #endif //PAYLOAD_EXTRACT_IO_H

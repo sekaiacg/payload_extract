@@ -41,6 +41,19 @@ namespace skkk {
 		handleWinPath(payloadPath);
 	}
 
+	const std::string &ExtractConfig::getOutConfigPath() const {
+		return outConfigPath;
+	}
+
+	void ExtractConfig::setOutConfigPath(const std::string &path) {
+		strTrim(outConfigPath = path);
+		handleWinPath(outConfigPath);
+	}
+
+	const std::map<std::string, std::string> &ExtractConfig::getOutConfig() const {
+		return outConfig;
+	}
+
 	const std::string &ExtractConfig::getTargetName() const {
 		return targetName;
 	}

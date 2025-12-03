@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "payload/Utils.h"
 #include "payload/common/io.h"
 
@@ -86,5 +88,14 @@ namespace skkk {
 			closeFd(inFd);
 		}
 		return ret == 0;
+	}
+
+	bool readAllLines(const std::string &filePath, std::vector<std::string> &result) {
+		std::ifstream file{filePath};
+		std::string str;
+		while (std::getline(file, str)) {
+			result.emplace_back(str);
+		}
+		return !result.empty();
 	}
 }

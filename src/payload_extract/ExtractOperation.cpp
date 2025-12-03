@@ -2,6 +2,7 @@
 
 #include <payload/LogBase.h>
 #include <payload/Utils.h>
+#include <payload/common/io.h>
 
 #include "ExtractOperation.h"
 
@@ -31,6 +32,25 @@ namespace skkk {
 				outDir.pop_back();
 		}
 		return RET_EXTRACT_DONE;
+	}
+
+	int ExtractOperation::initOutConfig() {
+		if (!fileExists(outConfigPath)) {
+			LOGCE("outConfigPath does not exist: '%s'", outConfigPath.c_str());
+			return RET_EXTRACT_INIT_FAIL;
+		}
+		std::vector<std::string> lines;
+		if (readAllLines(outConfigPath, lines)) {
+			std::vector<std::string> split;
+			for (const auto &line: lines) {
+				splitString(split, line, ":", true);
+				if (split.size() == 2) {
+					outConfig[split[0]] = split[1];
+					split.clear();
+				}
+			}
+		}
+		return outConfig.empty() ? RET_EXTRACT_INIT_FAIL : RET_EXTRACT_DONE;
 	}
 
 	int ExtractOperation::initTargetNames() {

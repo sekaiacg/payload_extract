@@ -1,6 +1,7 @@
 #ifndef PAYLOAD_EXTRACT_EXTRACTCONFIG_H
 #define PAYLOAD_EXTRACT_EXTRACTCONFIG_H
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -36,7 +37,8 @@ namespace skkk {
 			std::string payloadPath;
 			std::string oldDir;
 			std::string outDir;
-			std::string outFIlePath;
+			std::string outConfigPath;
+			std::map<std::string, std::string> outConfig;
 			std::string targetName;
 			std::vector<std::string> targets;
 
@@ -78,6 +80,12 @@ namespace skkk {
 			virtual const std::string &getPayloadPath() const;
 
 			virtual void setPayloadPath(const std::string &path);
+
+			virtual const std::string &getOutConfigPath() const;
+
+			virtual void setOutConfigPath(const std::string &path);
+
+			virtual const std::map<std::string, std::string> &getOutConfig() const;
 
 			virtual const std::string &getTargetName() const;
 

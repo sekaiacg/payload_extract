@@ -28,6 +28,8 @@ namespace skkk {
 
 			int initOutDir();
 
+			int initOutConfig();
+
 			int initTargetNames();
 
 			void handleUrl();

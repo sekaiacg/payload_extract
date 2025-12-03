@@ -37,6 +37,7 @@ static void usage(const ExtractOperation &eo) {
 	         "  " GREEN2_BOLD "-T#" COLOR_NONE "                  " BROWN "[" GREEN2_BOLD "1-%u" COLOR_NONE BROWN "] Use # threads, default: -T0, is " GREEN2_BOLD "%u" COLOR_NONE COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-k" COLOR_NONE "                   " BROWN "Skip SSL verification" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-o, --outdir=X" COLOR_NONE "       " BROWN "Output dir" COLOR_NONE "\n"
+	         "  " GREEN2_BOLD "--out-config=X" COLOR_NONE "       " BROWN "Output config file, One config per line: [boot:/path/to/xxx]" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-R" COLOR_NONE "                   " BROWN "Modify the URL in the remote config" COLOR_NONE "\n"
 	         "  "             "               "            "      " BROWN "  May need to specify the output directory" COLOR_NONE "\n"
 	         "  " GREEN2_BOLD "-V, --version" COLOR_NONE "        " BROWN "Print the version info" COLOR_NONE "\n",
@@ -67,6 +68,7 @@ static option argOptions[] = {
 	{"extract", required_argument, nullptr, 'X'},
 	{"incremental", required_argument, nullptr, 200},
 	{"verify-update", optional_argument, nullptr, 201},
+	{"out-config",required_argument, nullptr, 202},
 	{nullptr, no_argument, nullptr, 0},
 };
 
@@ -154,6 +156,12 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 				}
 				LOGCD("isVerifyUpdate=%d oldDir=%s", eo.isVerifyUpdate, eo.getOldDir().c_str());
 				break;
+			case 202:
+				if (optarg) {
+					eo.setOutConfigPath(optarg);
+				}
+				LOGCD("outConfigPath=%s", eo.getOutConfigPath().c_str());
+				break;
 			default:
 				usage(eo);
 				printVersion();
@@ -188,6 +196,11 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 
 		ret = eo.initOutDir();
 		if (ret) goto exit;
+
+		if (!eo.getOutConfigPath().empty()) {
+			ret = eo.initOutConfig();
+			if (ret) goto exit;
+		}
 
 		if (!eo.getTargetName().empty()) {
 			ret = eo.initTargetNames();
