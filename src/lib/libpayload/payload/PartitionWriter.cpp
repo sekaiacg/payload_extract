@@ -72,7 +72,7 @@ namespace skkk {
 		if (fd > 0) {
 			if (!payload_ftruncate(fd, fileSize)) return fd;
 		}
-		return fd;
+		return fd > 0 ? fd : -errno;
 	}
 
 	int PartitionWriter::initInFd(const std::string &path) {
@@ -136,6 +136,7 @@ namespace skkk {
 		outFd = PartitionWriter::initOutFd(info.outFilePath, info.size);
 		if (outFd < 0) {
 			info.initExcInfoByInitFd(info.outFilePath, outFd);
+			ret = outFd;
 			goto exit;
 		}
 		ret = mapRwByPath(outFd, info.outFilePath, outData, outDataSize);
@@ -143,7 +144,7 @@ namespace skkk {
 			info.initExcInfoByInitFd(info.outFilePath, ret);
 		}
 	exit:
-		return !ret;
+		return ret == 0;
 	}
 
 	bool PartitionWriter::extractByInfo(const PartitionInfo &info) const {

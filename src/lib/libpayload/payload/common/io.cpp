@@ -3,11 +3,13 @@
 
 namespace skkk {
 	int openFileRD(const std::string &path) {
-		return open(path.c_str(), O_RDONLY | O_BINARY);
+		int fd = open(path.c_str(), O_RDONLY | O_BINARY);
+		return fd > 0 ? fd : -errno;
 	}
 
 	int openFileRW(const std::string &path) {
-		return open(path.c_str(), O_RDWR | O_BINARY);
+		int fd = open(path.c_str(), O_RDWR | O_BINARY);
+		return fd > 0 ? fd : -errno;
 	}
 
 	void closeFd(int &fd) {
@@ -83,6 +85,6 @@ namespace skkk {
 			}
 			closeFd(inFd);
 		}
-		return ret;
+		return ret == 0;
 	}
 }
