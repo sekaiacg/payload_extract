@@ -239,7 +239,7 @@ namespace skkk {
 		return info.checkExtractionSuccessful();
 	}
 
-	bool PartitionWriter::extractByPartitionByName(const std::string &name) {
+	bool PartitionWriter::extractPartitionByName(const std::string &name) {
 		auto it = std::ranges::find(partitions, name, &PartitionInfo::name);
 		if (it != partitions.end()) {
 			const auto threadNum = config.threadNum;

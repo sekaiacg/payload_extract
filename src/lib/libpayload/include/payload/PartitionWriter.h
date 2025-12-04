@@ -67,7 +67,7 @@ namespace skkk {
 
 			bool extractByInfoMT(const PartitionInfo &info) const;
 
-			bool extractByPartitionByName(const std::string &name);
+			bool extractPartitionByName(const std::string &name);
 
 			void extractPartitions() const;
 	};
