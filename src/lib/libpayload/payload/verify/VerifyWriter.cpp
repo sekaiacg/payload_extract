@@ -252,7 +252,6 @@ namespace skkk {
 			               rsBlocks + j * fecRsn,
 			               fecData + fecWriteOffset + j * fecRoots);
 		}
-		memset(rsBlocks, 0, rsBlockSize);
 
 	exit:
 		++*currentProgress;
