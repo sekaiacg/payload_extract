@@ -17,16 +17,14 @@ namespace skkk {
 			uint64_t readFilePos;
 			uint64_t writeHashPos;
 			uint8_t *hashData = nullptr;
-			uint64_t saltVerifySize;
 
 			VerifyWriterHashTreeContext(const VerifyInfo &verifyInfo, const uint8_t *inData, uint64_t readFilePos,
-			                            uint64_t writeHashPos, uint8_t *hashData, uint64_t saltVerifySize)
+			                            uint64_t writeHashPos, uint8_t *hashData)
 				: verifyInfo(verifyInfo),
 				  inData(inData),
 				  readFilePos(readFilePos),
 				  writeHashPos(writeHashPos),
-				  hashData(hashData),
-				  saltVerifySize(saltVerifySize) {
+				  hashData(hashData) {
 			}
 	};
 

@@ -20,11 +20,13 @@ namespace skkk {
 		blockSize = partInfo.blockSize;
 		name = partInfo.name;
 		outFilePath = partInfo.outFilePath;
+		hasHashTreeDataExtent = partInfo.hasHashTreeDataExtent;
 		hashTreeDataExtentOffset = partInfo.hashTreeDataExtent.dataOffset;
 		hashTreeDataExtentSize = partInfo.hashTreeDataExtent.dataLength;
 		hashTreeDataOffset = partInfo.hashTreeExtent.dataOffset;
 		hashTreeDataSize = partInfo.hashTreeExtent.dataLength;
 		hashTreeSalt = partInfo.hashTreeSalt;
+		hasFecDataExtent = partInfo.hasFecDataExtent;
 		fecDataExtentOffset = partInfo.fecDataExtent.dataOffset;
 		fecDataExtentSize = partInfo.fecDataExtent.dataLength;
 		fecDataOffset = partInfo.fecExtent.dataOffset;

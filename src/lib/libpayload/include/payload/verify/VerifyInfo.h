@@ -33,6 +33,7 @@ namespace skkk {
 			std::string outFilePath;
 			uint64_t blockSize = 0;
 
+			bool hasHashTreeDataExtent = false;
 			// hash tree starting from offset
 			uint64_t hashTreeDataExtentOffset = 0;
 			// Size of data to be calc
@@ -50,6 +51,7 @@ namespace skkk {
 			std::shared_ptr<std::atomic_int> hashTreeExcSize = std::make_shared<std::atomic_int>(0);
 			mutable bool isCalcHashTreeSuccessful = false;
 
+			bool hasFecDataExtent = false;
 			// Encode starting from offset
 			uint64_t fecDataExtentOffset = 0;
 			// Size of data to be encoded

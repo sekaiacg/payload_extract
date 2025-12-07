@@ -67,7 +67,7 @@ namespace skkk {
 
 	void VerifyWriter::initHashTreeLevel() {
 		for (const auto &partInfo: partitions) {
-			if (partInfo.hasHashTreeDataExtent && partInfo.hasFecDataExtent) {
+			if (partInfo.hasHashTreeDataExtent) {
 				auto &verifyInfo = verifyInfos.emplace_back(partInfo);
 				auto &topLevel = verifyInfo.topHashLevel;
 				topLevel = {verifyInfo.hashTreeDataExtentSize, partInfo.blockSize};
@@ -95,12 +95,13 @@ namespace skkk {
 		const auto writeHashPos = ctx.writeHashPos;
 		auto *hashData = ctx.hashData;
 		const auto blockSize = info.blockSize;
-		const auto SALT_VERIFY_SIZE = ctx.saltVerifySize;
+		const auto hashTreeSaltSize = info.hashTreeSalt.size();
+		const auto SALT_VERIFY_SIZE = blockSize + hashTreeSaltSize;
 		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
 		auto *sha256Data = origData.data();
-		auto *readData = sha256Data + SHA256_DIGEST_SIZE;
+		auto *readData = sha256Data + hashTreeSaltSize;
 
-		memcpy(sha256Data, hashTreeSalt, SHA256_DIGEST_SIZE);
+		memcpy(sha256Data, hashTreeSalt, hashTreeSaltSize);
 		ret = memcpy(readData, ctx.inData + readFilePos, blockSize) == readData ? 0 : -EIO;
 		if (ret) goto exit;
 		if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
@@ -124,13 +125,14 @@ namespace skkk {
 		auto &rootLevel = info.rootHashLevel;
 		auto *preHashData = preLevel->hashData;
 		const auto blockSize = info.blockSize;
-		const uint64_t SALT_VERIFY_SIZE = blockSize + SHA256_DIGEST_SIZE;
+		const auto hashTreeSaltSize = info.hashTreeSalt.size();
+		const uint64_t SALT_VERIFY_SIZE = blockSize + hashTreeSaltSize;
 		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
 		auto *sha256Data = origData.data();
-		auto *readData = sha256Data + SHA256_DIGEST_SIZE;
+		auto *readData = sha256Data + hashTreeSaltSize;
 		uint64_t inDataSize = 0;
 		const uint8_t *inData = nullptr;
-		memcpy(sha256Data, info.hashTreeSalt.data(), SHA256_DIGEST_SIZE);
+		memcpy(sha256Data, info.hashTreeSalt.data(), hashTreeSaltSize);
 
 		ret = mapRdByPath(inFd, info.outFilePath, inData, inDataSize);
 		if (ret) {
@@ -139,19 +141,19 @@ namespace skkk {
 
 		// wait
 		{
+			progressThread = std::async(std::launch::async, printProgressMT, config.isSilent, info.name,
+			                            HASH_TREE_FMT, info.hashTreeTotalProgress, std::ref(*currentProgress),
+			                            true);
 			std::vector<VerifyWriterHashTreeContext> ctxs;
 			ctxs.reserve(topLevel.blockCount);
 			std::threadpool tp{config.threadNum};
 			while (readPos < info.hashTreeDataExtentSize) {
 				auto &ctx = ctxs.emplace_back(info, inData, readPos,
-				                              writeHashPos, preHashData, SALT_VERIFY_SIZE);
+				                              writeHashPos, preHashData);
 				tp.commit(sha256HashTreeTopLevelTask, std::ref(ctx));
 				readPos += blockSize;
 				writeHashPos += SHA256_DIGEST_SIZE;
 			}
-			progressThread = std::async(std::launch::async, printProgressMT, config.isSilent, info.name,
-			                            HASH_TREE_FMT, info.hashTreeTotalProgress, std::ref(*currentProgress),
-			                            true);
 		}
 
 		readPos = writeHashPos = 0;
@@ -317,19 +319,20 @@ namespace skkk {
 
 	void VerifyWriter::updateVerifyData() const {
 		for (const auto &info: verifyInfos) {
-			bool hashTreeSuccessful = false, fecSuccessful = false, updateSuccessful = false;
+			bool hashTreeSuccessful = false, fecSuccessful = false;
 			if (handleHashTreeDataByInfo(info)) {
 				if (updateHashTreeByInfo(info)) {
 					hashTreeSuccessful = true;
 				}
 			}
-			if (hashTreeSuccessful) {
+			if (hashTreeSuccessful && info.hasFecDataExtent) {
 				if (handleFecDataByInfo(info)) {
 					fecSuccessful = updateFecByInfo(info);
-				} else {
 				}
 			}
-			printVerifyResult(info.name, hashTreeSuccessful && fecSuccessful);
+			printVerifyResult(info.name, info.hasFecDataExtent
+				                             ? hashTreeSuccessful && fecSuccessful
+				                             : hashTreeSuccessful);
 		}
 	}
 }
