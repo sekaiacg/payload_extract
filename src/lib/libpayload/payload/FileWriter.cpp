@@ -7,6 +7,7 @@
 #include "payload/HttpDownload.h"
 #include "payload/update_metadata.pb.h"
 #include "payload/Utils.h"
+#include "payload/common/Buffer.hpp"
 #include "payload/common/io.h"
 
 using namespace chromeos_update_engine;
@@ -40,24 +41,25 @@ namespace skkk {
 	                            const FileOperation &operation) const {
 		int ret = -1;
 		uint8_t *srcData = nullptr;
+		Buffer<uint8_t> srcBuffer;
 		if (httpDownload) {
-			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+			srcBuffer.reserve(operation.dataLength);
+			srcData = srcBuffer.get();
 			urlRead(srcData, operation);
 		} else {
 			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
 		}
 		if (srcData) {
 			auto &dst = operation.dstExtents[0];
-			auto *destBuf = static_cast<uint8_t *>(malloc(dst.dataLength));
+			Buffer<uint8_t> destBuffer{dst.dataLength};
+			auto *destBuf = destBuffer.get();
 			if (destBuf) {
 				uint64_t outDestLength = dst.dataLength;
 				ret = decompress(srcData, operation.dataLength, destBuf, outDestLength);
 				if (!ret) {
 					ret = memcpy(outData + dst.dataOffset, destBuf, dst.dataLength) ? 0 : -EIO;
 				}
-				free(destBuf);
 			}
-			if (httpDownload) free(srcData);
 		}
 		return ret;
 	}
@@ -65,8 +67,10 @@ namespace skkk {
 	int FileWriter::directWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
 		int ret = -1;
 		uint8_t *srcData = nullptr;
+		Buffer<uint8_t> srcBuffer;
 		if (httpDownload) {
-			srcData = static_cast<uint8_t *>(malloc(operation.dataLength));
+			srcBuffer.reserve(operation.dataLength);
+			srcData = srcBuffer.get();
 			urlRead(srcData, operation);
 		} else {
 			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
@@ -74,7 +78,6 @@ namespace skkk {
 		if (srcData) {
 			auto &dst = operation.dstExtents[0];
 			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
-			if (httpDownload) free(srcData);
 		}
 		return ret;
 	}
@@ -88,10 +91,10 @@ namespace skkk {
 	int FileWriter::zeroWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
-		auto *srcData = static_cast<uint8_t *>(calloc(1, dst.dataLength));
+		Buffer<uint8_t> srcBuffer{0, dst.dataLength};
+		auto *srcData = srcBuffer.get();
 		if (srcData) {
 			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
-			free(srcData);
 		}
 		return ret;
 	}
@@ -131,13 +134,13 @@ namespace skkk {
 	int FileWriter::sourceCopy(const uint8_t *inData, uint8_t *outData, const FileOperation &operation) {
 		int ret = -1;
 		auto &dst = operation.dstExtents[0];
-		auto *srcData = static_cast<uint8_t *>(malloc(operation.srcTotalLength));
+		Buffer<uint8_t> srcBuffer{operation.srcTotalLength};
+		auto *srcData = srcBuffer.get();
 		if (srcData) {
 			ret = extentsRead(inData, srcData, operation.srcExtents);
 			if (!ret) {
 				ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
 			}
-			free(srcData);
 		}
 		return ret;
 	}
@@ -149,15 +152,18 @@ namespace skkk {
 		auto &dsts = operation.dstExtents;
 		uint64_t patchDataLength = operation.dataLength;
 		uint8_t *patchData = nullptr;
+		Buffer<uint8_t> patchBuffer;
 		if (httpDownload) {
-			patchData = static_cast<uint8_t *>(malloc(patchDataLength));
+			patchBuffer.reserve(patchDataLength);
+			patchData = patchBuffer.get();
 			urlRead(patchData, operation);
 		} else {
 			patchData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
 		}
 		if (patchData) {
 			uint64_t srcTotalLength = operation.srcTotalLength;
-			auto *srcData = static_cast<uint8_t *>(malloc(srcTotalLength));
+			Buffer<uint8_t> srcBuffer{srcTotalLength};
+			auto *srcData = srcBuffer.get();
 			if (srcData) {
 				ret = extentsRead(inData, srcData, operation.srcExtents);
 				if (!ret) {
@@ -173,9 +179,7 @@ namespace skkk {
 						ret = extentsWrite(outData, patchedData.data(), dsts);
 					}
 				}
-				free(srcData);
 			}
-			if (httpDownload) free(patchData);
 		}
 
 		return ret;
