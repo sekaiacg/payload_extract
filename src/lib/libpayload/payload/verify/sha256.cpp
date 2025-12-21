@@ -19,8 +19,9 @@
 
 /*************************** HEADER FILES ***************************/
 
-#include <cstdlib>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory.h>
 
 #include "sha256.h"
@@ -45,13 +46,93 @@ static constexpr uint32_t K[] =
 	0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2
 };
 
-#if defined(__arm__) || defined(__aarch32__) || defined(__arm64__) || defined(__ARM_ARCH_64__) || defined(__aarch64__) || defined(_M_ARM)
+#define ROTATE(x,y)  (((x)>>(y)) | ((x)<<(32-(y))))
+#define Sigma0(x)    (ROTATE((x), 2) ^ ROTATE((x),13) ^ ROTATE((x),22))
+#define Sigma1(x)    (ROTATE((x), 6) ^ ROTATE((x),11) ^ ROTATE((x),25))
+#define sigma0(x)    (ROTATE((x), 7) ^ ROTATE((x),18) ^ ((x)>> 3))
+#define sigma1(x)    (ROTATE((x),17) ^ ROTATE((x),19) ^ ((x)>>10))
+
+#define Ch(x,y,z)    (((x) & (y)) ^ ((~(x)) & (z)))
+#define Maj(x,y,z)   (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+
+/* Avoid undefined behavior                    */
+/* https://stackoverflow.com/q/29538935/608639 */
+uint32_t B2U32(uint8_t val, uint8_t sh) {
+	return ((uint32_t) val) << sh;
+}
+
+void sha256_process_c(uint32_t state[8], const uint8_t *data, size_t length) {
+	uint32_t a, b, c, d, e, f, g, h, s0, s1, T1, T2;
+	uint32_t X[16], i;
+
+	size_t blocks = length / 64;
+	while (blocks--) {
+		a = state[0];
+		b = state[1];
+		c = state[2];
+		d = state[3];
+		e = state[4];
+		f = state[5];
+		g = state[6];
+		h = state[7];
+
+		for (i = 0; i < 16; i++) {
+			X[i] = B2U32(data[0], 24) | B2U32(data[1], 16) | B2U32(data[2], 8) | B2U32(data[3], 0);
+			data += 4;
+
+			T1 = h;
+			T1 += Sigma1(e);
+			T1 += Ch(e, f, g);
+			T1 += K[i];
+			T1 += X[i];
+
+			T2 = Sigma0(a);
+			T2 += Maj(a, b, c);
+
+			h = g;
+			g = f;
+			f = e;
+			e = d + T1;
+			d = c;
+			c = b;
+			b = a;
+			a = T1 + T2;
+		}
+
+		for (; i < 64; i++) {
+			s0 = X[(i + 1) & 0x0f];
+			s0 = sigma0(s0);
+			s1 = X[(i + 14) & 0x0f];
+			s1 = sigma1(s1);
+
+			T1 = X[i & 0xf] += s0 + s1 + X[(i + 9) & 0xf];
+			T1 += h + Sigma1(e) + Ch(e, f, g) + K[i];
+			T2 = Sigma0(a) + Maj(a, b, c);
+			h = g;
+			g = f;
+			f = e;
+			e = d + T1;
+			d = c;
+			c = b;
+			b = a;
+			a = T1 + T2;
+		}
+
+		state[0] += a;
+		state[1] += b;
+		state[2] += c;
+		state[3] += d;
+		state[4] += e;
+		state[5] += f;
+		state[6] += g;
+		state[7] += h;
+	}
+}
+
+#if defined(__aarch32__) || defined(__arm64__) || defined(__ARM_ARCH_64__) || defined(__aarch64__)
 // ============== ARM64 begin =======================
 // All the ARM servers supports SHA256 instructions
 
-# if defined(__GNUC__)
-#  include <stdint.h>
-# endif
 # if defined(__ARM_NEON) || defined(_MSC_VER) || defined(__GNUC__)
 #  include <arm_neon.h>
 # endif
@@ -222,11 +303,10 @@ void sha256_process(uint32_t state[8], const uint8_t *data, uint32_t length) {
 }
 
 // ============== ARM64 end =======================
-#else
+#elif defined(__x86_64__)
 // ============== x86-64 begin =======================
 /* Include the GCC super header */
 #if defined(__GNUC__)
-# include <cstdint>
 # include <x86intrin.h>
 #endif
 
@@ -236,88 +316,6 @@ void sha256_process(uint32_t state[8], const uint8_t *data, uint32_t length) {
 # define WIN32_LEAN_AND_MEAN
 # include <Windows.h>
 #endif
-#define ROTATE(x,y)  (((x)>>(y)) | ((x)<<(32-(y))))
-#define Sigma0(x)    (ROTATE((x), 2) ^ ROTATE((x),13) ^ ROTATE((x),22))
-#define Sigma1(x)    (ROTATE((x), 6) ^ ROTATE((x),11) ^ ROTATE((x),25))
-#define sigma0(x)    (ROTATE((x), 7) ^ ROTATE((x),18) ^ ((x)>> 3))
-#define sigma1(x)    (ROTATE((x),17) ^ ROTATE((x),19) ^ ((x)>>10))
-
-#define Ch(x,y,z)    (((x) & (y)) ^ ((~(x)) & (z)))
-#define Maj(x,y,z)   (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
-
-/* Avoid undefined behavior                    */
-/* https://stackoverflow.com/q/29538935/608639 */
-uint32_t B2U32(uint8_t val, uint8_t sh) {
-	return ((uint32_t) val) << sh;
-}
-
-void sha256_process_c(uint32_t state[8], const uint8_t *data, size_t length) {
-	uint32_t a, b, c, d, e, f, g, h, s0, s1, T1, T2;
-	uint32_t X[16], i;
-
-	size_t blocks = length / 64;
-	while (blocks--) {
-		a = state[0];
-		b = state[1];
-		c = state[2];
-		d = state[3];
-		e = state[4];
-		f = state[5];
-		g = state[6];
-		h = state[7];
-
-		for (i = 0; i < 16; i++) {
-			X[i] = B2U32(data[0], 24) | B2U32(data[1], 16) | B2U32(data[2], 8) | B2U32(data[3], 0);
-			data += 4;
-
-			T1 = h;
-			T1 += Sigma1(e);
-			T1 += Ch(e, f, g);
-			T1 += K[i];
-			T1 += X[i];
-
-			T2 = Sigma0(a);
-			T2 += Maj(a, b, c);
-
-			h = g;
-			g = f;
-			f = e;
-			e = d + T1;
-			d = c;
-			c = b;
-			b = a;
-			a = T1 + T2;
-		}
-
-		for (; i < 64; i++) {
-			s0 = X[(i + 1) & 0x0f];
-			s0 = sigma0(s0);
-			s1 = X[(i + 14) & 0x0f];
-			s1 = sigma1(s1);
-
-			T1 = X[i & 0xf] += s0 + s1 + X[(i + 9) & 0xf];
-			T1 += h + Sigma1(e) + Ch(e, f, g) + K[i];
-			T2 = Sigma0(a) + Maj(a, b, c);
-			h = g;
-			g = f;
-			f = e;
-			e = d + T1;
-			d = c;
-			c = b;
-			b = a;
-			a = T1 + T2;
-		}
-
-		state[0] += a;
-		state[1] += b;
-		state[2] += c;
-		state[3] += d;
-		state[4] += e;
-		state[5] += f;
-		state[6] += g;
-		state[7] += h;
-	}
-}
 
 /* Process multiple blocks. The caller is responsible for setting the initial */
 /*  state, and the caller is responsible for padding the final block.        */
@@ -554,6 +552,12 @@ void sha256_process(uint32_t state[8], const uint8_t *data, size_t length) {
 		sha256_process_c(state, data, length);
 		//printf("In sha256_process_c length %zu\n", length);
 	}
+}
+
+#else
+
+void sha256_process(uint32_t state[8], const uint8_t *data, size_t length) {
+	return sha256_process_c(state, data, length);
 }
 
 // ============== x86-64 end =======================
