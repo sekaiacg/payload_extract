@@ -62,6 +62,22 @@ cmake_build()
                 -DCMAKE_C_FLAGS="" \
                 -DCMAKE_CXX_FLAGS="" \
                 -DENABLE_FULL_LTO="ON"
+        elif [[ ${ABI} == "loongarch64" ]]; then
+            cmake -S ${BUILD_DIR} -B ${OUT} ${BUILD_METHOD} \
+                -DPAYLOAD_EXTRACT_VERSION="${VERSION}" \
+                -DCMAKE_SYSTEM_NAME="Linux" \
+                -DCMAKE_SYSTEM_PROCESSOR="loongarch64" \
+                -DCMAKE_BUILD_TYPE="Release" \
+                -DCMAKE_C_COMPILER_LAUNCHER="ccache" \
+                -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" \
+                -DCMAKE_C_COMPILER="clang" \
+                -DCMAKE_CXX_COMPILER="clang++" \
+                -DCMAKE_C_COMPILER_TARGET="loongarch64-linux-gnu" \
+                -DCMAKE_CXX_COMPILER_TARGET="loongarch64-linux-gnu" \
+                -DCMAKE_ASM_COMPILER_TARGET="loongarch64-linux-gnu" \
+                -DCMAKE_C_FLAGS="" \
+                -DCMAKE_CXX_FLAGS="" \
+                -DENABLE_FULL_LTO="ON"
         fi
     elif [[ $TARGET == "Windows" ]]; then
         cmake -S ${BUILD_DIR} -B ${OUT} ${BUILD_METHOD} \
@@ -129,6 +145,7 @@ build_linux()
 {
     build "Linux" "x86_64"
     build "Linux" "aarch64"
+    build "Linux" "loongarch64"
 }
 
 build_windows()

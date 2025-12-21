@@ -137,6 +137,10 @@ jobs:
         run: |
           sudo apt update && sudo apt install cpp-14-aarch64-linux-gnu gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu
 
+      - name: Setup gcc-loongarch64 tools
+        run: |
+          sudo apt update && sudo apt install cpp-14-loongarch64-linux-gnu gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu
+
       - name: Setup llvm-mingw tools
         run: |
           wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251216/llvm-mingw-20251216-ucrt-ubuntu-22.04-x86_64.tar.xz
@@ -171,6 +175,9 @@ jobs:
           echo "linuxAarch64Dir=target/Linux_aarch64" >> $GITHUB_OUTPUT
           linuxAarch64Name=`ls -d target/Linux_aarch64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxAarch64Name=$linuxAarch64Name" >> $GITHUB_OUTPUT
 
+          echo "linuxLoongarch64Dir=target/Linux_loongarch64" >> $GITHUB_OUTPUT
+          linuxLoongarch64Name=`ls -d target/Linux_loongarch64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxLoongarch64Name=$linuxLoongarch64Name" >> $GITHUB_OUTPUT
+
           echo "windowsX86x64Dir=target/Windows_x86_64" >> $GITHUB_OUTPUT
           windowsX86x64Name=`ls -d target/Windows_x86_64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "windowsX86x64Name=$windowsX86x64Name" >> $GITHUB_OUTPUT
 
@@ -190,6 +197,13 @@ jobs:
         with:
           name: ${{ steps.Artifact.outputs.linuxAarch64Name }}
           path: '${{ steps.Artifact.outputs.linuxAarch64Dir }}/${{ steps.Artifact.outputs.linuxAarch64Name }}/*'
+
+      - name: Upload payload_extract Linux_loongarch64
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.Artifact.outputs.linuxLoongarch64Name }}
+          path: '${{ steps.Artifact.outputs.linuxLoongarch64Dir }}/${{ steps.Artifact.outputs.linuxLoongarch64Name }}/*'
 
       - name: Upload payload_extract Windows_x86_64
         if: success()
