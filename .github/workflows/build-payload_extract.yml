@@ -139,10 +139,10 @@ jobs:
 
       - name: Setup llvm-mingw tools
         run: |
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251007/llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64.tar.xz
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251216/llvm-mingw-20251216-ucrt-ubuntu-22.04-x86_64.tar.xz
           mkdir ${LLVM_MINGW_PATH}
-          tar -xf llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
-          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20251007-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
+          tar -xf llvm-mingw-20251216-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
+          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20251216-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v4
