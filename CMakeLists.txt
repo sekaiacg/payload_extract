@@ -95,9 +95,11 @@ elseif (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
 endif ()
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|x86_64")
-    list(APPEND GLOBAL_CFLAGS "-msse4.2" "-msha")
-else (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    list(APPEND GLOBAL_CFLAGS "-msse4.2" "-mpclmul" "-msha")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
     list(APPEND GLOBAL_CFLAGS "-march=armv8-a+crypto")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7-a")
+    list(APPEND GLOBAL_CFLAGS "-march=armv7-a")
 endif ()
 
 add_compile_options(
