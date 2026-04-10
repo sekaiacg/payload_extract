@@ -1,29 +1,22 @@
 #ifndef PAYLOAD_EXTRACT_BUFFER_H
 #define PAYLOAD_EXTRACT_BUFFER_H
 
+#include <algorithm>
 #include <memory>
 
 namespace skkk {
 	template<typename T>
 	class Buffer {
 		uint64_t size_ = 0;
-		std::unique_ptr<T[]> data_;
+		std::unique_ptr<T[]> data_{};
 
 		void allocate(uint64_t size) {
 			this->size_ = size;
-			this->data_ = std::make_unique<T[]>(sizeof(T) * size);
+			this->data_ = std::make_unique<T[]>(size);
 		}
 
 		void setValue(T value) {
-			switch (sizeof(T)) {
-				case 1:
-					memset(data_.get(), value, size_);
-					break;
-				default:
-					for (uint64_t i = 0; i < size_; i++) {
-						data_[i] = value;
-					}
-			}
+			std::fill(data_.get(), data_.get() + size_, value);
 		}
 
 		public:
@@ -45,6 +38,7 @@ namespace skkk {
 			Buffer(Buffer &&other)
 				noexcept : size_(other.size_),
 				           data_(std::move(other.data_)) {
+				other.size_ = 0;
 			}
 
 			Buffer &operator=(Buffer &&other) noexcept {
@@ -52,6 +46,7 @@ namespace skkk {
 					return *this;
 				size_ = other.size_;
 				data_ = std::move(other.data_);
+				other.size_ = 0;
 				return *this;
 			}
 
