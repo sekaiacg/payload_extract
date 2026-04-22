@@ -37,6 +37,7 @@ namespace skkk {
 	retry:
 		ret = std::get<0>(httpDownload->download(fb, offset, length));
 		if (!ret) {
+			fb.offset = 0;
 			if (retryCount < 3) {
 				retryCount++;
 				LOGCD("URL: download failed, retry: {}", retryCount);
