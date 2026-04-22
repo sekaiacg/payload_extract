@@ -107,12 +107,12 @@ namespace skkk {
 		public:
 			std::shared_ptr<HttpDownload> httpDownload;
 			std::string path;
-			uint64_t fileDataSize = 0;
 			const uint8_t *fileData = nullptr;
+			uint64_t fileDataSize = 0;
 			std::vector<ZipFileItem> files;
 
 		public:
-			ZipParser(uint64_t fileSize, const uint8_t *fileData);
+			ZipParser(const uint8_t *fileData, uint64_t fileSize);
 
 			explicit ZipParser(const std::shared_ptr<HttpDownload> &httpDownload);
 

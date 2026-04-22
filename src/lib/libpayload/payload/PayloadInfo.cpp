@@ -44,71 +44,78 @@ namespace skkk {
 		return false;
 	}
 
-	bool PayloadInfo::handleZipFile() {
-		if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
-
-		ZipParser zip{fileDataSize, fileData};
-		if (zip.parse()) {
-			zipFiles = std::move(zip.files);
-			return true;
+	bool PayloadInfo::parsePayloadMetadataFile(const std::string &fileContext) {
+		size_t startPos = fileContext.find(OTA_PROP_FILES_PREFIX);
+		if (startPos != std::string::npos) {
+			size_t endPos = fileContext.find_first_of('\n', startPos + 1);
+			if (endPos != std::string::npos) {
+				std::string findStr = {
+					fileContext, startPos + OTA_PROP_FILES_PREFIX.size(),
+					endPos - OTA_PROP_FILES_PREFIX.size()
+				};
+				strTrim(findStr);
+				std::vector<std::string> list;
+				splitString(list, findStr, ",", true);
+				for (const auto &tmp: list) {
+					if (tmp.starts_with("payload_metadata.bin")) {
+						std::stringstream ss(tmp);
+						std::string offsetStr;
+						std::string sizeStr;
+						std::getline(ss, offsetStr, ':');
+						std::getline(ss, offsetStr, ':');
+						std::getline(ss, sizeStr);
+						payloadOffset = std::stoll(offsetStr);
+						payloadMetadataSize = std::stoll(sizeStr);
+						return payloadOffset > 0 && payloadMetadataSize > 0;
+					}
+				}
+			}
 		}
 		return false;
 	}
 
-	bool PayloadInfo::initPayloadOffsetByZip(uint8_t *data) {
-		const auto *zlh = reinterpret_cast<ZipLocalHeader *>(data);
+	bool PayloadInfo::initPayloadOffsetByFastParseZip(const uint8_t *data, uint64_t dataSize) {
+		const auto *zlh = reinterpret_cast<const ZipLocalHeader *>(data);
 		const auto filenameSize = zlh->filenameLength;
 		const auto fileSize = zlh->uncompressedSize;
 		const auto extraFieldSize = zlh->extraFieldLength;
 		if (zlh->compressionMethod == 0) {
 			constexpr uint64_t headerSize = sizeof(ZipLocalHeader);
-			const std::string &filename = {reinterpret_cast<char *>(data) + headerSize, 0, filenameSize};
-			if (filename == metadataName) {
-				std::string fileContext = {
-					reinterpret_cast<char *>(data) + headerSize + filenameSize + extraFieldSize, fileSize
+			const uint64_t totalSize = headerSize + filenameSize + extraFieldSize + fileSize;
+			const std::string &filename = {reinterpret_cast<const char *>(data) + headerSize, 0, filenameSize};
+			if (filename == METADATA_FILENAME && totalSize <= dataSize) {
+				const std::string fileContext = {
+					reinterpret_cast<const char *>(data) + headerSize + filenameSize + extraFieldSize,
+					fileSize
 				};
-				size_t startPos = fileContext.find(findPrefixStr);
-				if (startPos != std::string::npos) {
-					size_t endPos = fileContext.find_first_of('\n', startPos + 1);
-					if (endPos != std::string::npos) {
-						std::string findStr = {
-							fileContext, startPos + findPrefixStr.size(), endPos - findPrefixStr.size()
-						};
-						strTrim(findStr);
-						std::vector<std::string> list;
-						splitString(list, findStr, ",", true);
-						for (const auto &tmp: list) {
-							std::stringstream ss(tmp);
-							std::string name;
-							std::getline(ss, name, ':');
-							if (name == "payload_metadata.bin") {
-								std::string offsetStr;
-								std::string sizeStr;
-								std::getline(ss, offsetStr, ':');
-								std::getline(ss, sizeStr);
-								payloadOffset = std::stoll(offsetStr);
-								payloadMetadataSize = std::stoll(sizeStr);
-								return payloadOffset > 0 && payloadMetadataSize > 0;
-							}
-						}
-					}
-				}
+				return parsePayloadMetadataFile(fileContext);
 			}
-			LOGCE("INFO: payload.bin format error!");
+		}
+		return false;
+	}
+
+	bool PayloadInfo::initPayloadOffsetByParseZip() {
+		if (ZipParser zip{fileData, fileDataSize}; zip.parse()) {
+			if (const auto it = std::ranges::find(zip.files, METADATA_FILENAME, &ZipFileItem::name);
+				it != zipFiles.end()) {
+				return initPayloadOffsetByFastParseZip(fileData + it->localHeaderOffset, fileDataSize);
+			}
 		}
 		return false;
 	}
 
 	bool PayloadInfo::handleOffset() {
-		if (fileDataSize >= headerDataSize) {
-			uint8_t data[headerDataSize] = {};
-			if (memcpy(data, fileData, headerDataSize) == data) {
+		if (fileDataSize >= HEADER_DATA_SIZE) {
+			uint8_t data[HEADER_DATA_SIZE] = {};
+			if (memcpy(data, fileData, HEADER_DATA_SIZE) == data) {
 				if (memcmp(fileData, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
-					if (initPayloadOffsetByZip(data)) {
+					if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE)) {
 						return true;
 					}
-				}
-				if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
+					if (initPayloadOffsetByParseZip()) {
+						return true;
+					}
+				} else if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
 					return true;
 				}
 			}

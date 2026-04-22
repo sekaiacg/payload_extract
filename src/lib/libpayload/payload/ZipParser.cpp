@@ -3,9 +3,9 @@
 #include "payload/common/io.h"
 
 namespace skkk {
-	ZipParser::ZipParser(uint64_t fileSize, const uint8_t *fileData)
-		: fileDataSize(fileSize),
-		  fileData(fileData) {
+	ZipParser::ZipParser(const uint8_t *fileData, uint64_t fileSize)
+		: fileData(fileData),
+		  fileDataSize(fileSize) {
 	}
 
 	ZipParser::ZipParser(const std::shared_ptr<HttpDownload> &httpDownload)

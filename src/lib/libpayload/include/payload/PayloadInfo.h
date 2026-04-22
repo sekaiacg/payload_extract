@@ -18,9 +18,9 @@ namespace skkk {
 
 	class PayloadInfo {
 		protected:
-			static constexpr std::string_view metadataName{"META-INF/com/android/metadata"};
-			static constexpr std::string_view findPrefixStr{"ota-property-files="};
-			static constexpr uint32_t headerDataSize = 8192;
+			static constexpr std::string_view METADATA_FILENAME{"META-INF/com/android/metadata"};
+			static constexpr std::string_view OTA_PROP_FILES_PREFIX{"ota-property-files="};
+			static constexpr uint32_t HEADER_DATA_SIZE = 8192;
 			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
@@ -51,9 +51,11 @@ namespace skkk {
 
 			virtual bool initPayloadFile();
 
-			virtual bool handleZipFile();
+			bool parsePayloadMetadataFile(const std::string &fileContext);
 
-			bool initPayloadOffsetByZip(uint8_t *data);
+			bool initPayloadOffsetByFastParseZip(const uint8_t *data, uint64_t dataSize);
+
+			virtual bool initPayloadOffsetByParseZip();
 
 			virtual bool handleOffset();
 
@@ -89,7 +91,9 @@ namespace skkk {
 
 			bool download(FileBuffer &fb, uint64_t offset, uint64_t length) const;
 
-			bool handleZipFile() override;
+			bool initPayloadOffsetByParseZip() override;
+
+			bool downloadPayloadMetadata(FileBuffer &fb);
 
 			bool handleOffset() override;
 	};

@@ -27,6 +27,7 @@ namespace skkk {
 				LOGCD("URL: download failed, retry: {}", retryCount);
 				goto retry;
 			}
+			LOGCE("URL: Failed to connect to the server, please try again later.");
 		}
 		return ret;
 	}
@@ -43,54 +44,49 @@ namespace skkk {
 				LOGCD("URL: download failed, retry: {}", retryCount);
 				goto retry;
 			}
+			LOGCE("URL: Failed to connect to the server, please try again later.");
 		}
 		return ret;
 	}
 
-	bool UrlPayloadInfo::handleZipFile() {
-		uint8_t header[128] = {};
-		FileBuffer fb{header, 0};
-		if (!download(fb, 0, PLH_SIZE)) {
-			LOGCE("URL: Failed to connect to the server, please try again later.");
-			return false;
-		}
-		if (memcmp(header, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) return false;
-
-		if (memcmp(header, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
-			ZipParser zip{config.httpDownload};
-			if (zip.parse()) {
-				zipFiles = std::move(zip.files);
-				return true;
+	bool UrlPayloadInfo::initPayloadOffsetByParseZip() {
+		if (ZipParser zip{config.httpDownload}; zip.parse()) {
+			if (const auto it = std::ranges::find(zip.files, METADATA_FILENAME, &ZipFileItem::name);
+				it != zipFiles.end()) {
+				std::string buffer;
+				buffer.reserve(HEADER_DATA_SIZE);
+				if (download(buffer, it->localHeaderOffset, HEADER_DATA_SIZE)) {
+					return initPayloadOffsetByFastParseZip(reinterpret_cast<const uint8_t *>(buffer.data()),
+					                                       HEADER_DATA_SIZE);
+				}
 			}
 		}
 		return false;
 	}
 
+	bool UrlPayloadInfo::downloadPayloadMetadata(FileBuffer &fb) {
+		payloadMetadata.reserve(payloadMetadataSize);
+		fb.data = payloadMetadata.get();
+		fb.offset = 0;
+		return download(fb, payloadOffset, payloadMetadataSize);
+	}
+
 	bool UrlPayloadInfo::handleOffset() {
-		if (Buffer<uint8_t> buffer{headerDataSize}) {
+		if (Buffer<uint8_t> buffer{HEADER_DATA_SIZE}) {
 			auto *data = buffer.get();
 			FileBuffer fb{data, 0};
-			if (!download(fb, 0, headerDataSize)) {
-				LOGCE("URL: Failed to connect to the server, please try again later.");
-				return false;
-			}
+			if (!download(fb, 0, HEADER_DATA_SIZE)) return false;
 			if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
-				if (initPayloadOffsetByZip(data)) {
-					payloadMetadata.resize(payloadMetadataSize);
-					fb.data = payloadMetadata.get();
-					fb.offset = 0;
-					if (!download(fb, payloadOffset, payloadMetadataSize)) {
-						LOGCE("URL: Failed to connect to the server, please try again later.");
-						return false;
-					}
+				if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE) && downloadPayloadMetadata(fb)) {
 					return true;
 				}
-			}
-			if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
+				if (initPayloadOffsetByParseZip() && downloadPayloadMetadata(fb)) {
+					return true;
+				}
+			} else if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
 				return true;
 			}
 		}
-
 		LOGCE("URL: payload.bin not found!");
 		return false;
 	}
