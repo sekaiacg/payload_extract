@@ -12,6 +12,7 @@ set(libprotobuf_cflags_defaults
     "-Wno-deprecated-pragma"
     "-Wno-invalid-noreturn"
     "-Wno-macro-redefined"
+    "-Wno-unused-template"
     "-U__ANDROID__"
 )
 
