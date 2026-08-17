@@ -127,12 +127,10 @@ jobs:
       LLVM_MINGW_PATH: "/opt/mingw"
 
     steps:
-      - name: Setup clang+llvm
-        run: |
-          apt list --installed | grep -E "^clang-[0-9]" | cut -d"/" -f1 | xargs -i sudo apt remove --autoremove {}
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list
-          sudo apt update && sudo apt install clang llvm lld
+      - name: Setup LLVM
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 23
 
       - name: Setup gcc-aarch64 tools
         run: |
