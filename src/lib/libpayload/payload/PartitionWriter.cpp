@@ -2,6 +2,7 @@
 #include <cerrno>
 #include <future>
 #include <memory>
+#include <print>
 #include <ranges>
 
 #include "common/LogProgress.h"
@@ -46,12 +47,11 @@ namespace skkk {
 
 	void PartitionWriter::printPartitionsInfo() const {
 		auto &header = payloadInfo->pHeader;
-		std::cout << std::format("PartitionSize: {:3} MinorVersion: {:2} SecurityPatchLevel: {}",
-		                         payloadInfo->partitionInfoMap.size(), header.minorVersion,
-		                         header.securityPatchLevel)
-				<< std::endl;
+		std::println("PartitionSize: {:3} MinorVersion: {:2} SecurityPatchLevel: {}",
+		             payloadInfo->partitionInfoMap.size(), header.minorVersion,
+		             header.securityPatchLevel);
 		for (const auto &partition: partitions) {
-			partition.printInfo();
+			partition.printSimpleInfo();
 		}
 	}
 

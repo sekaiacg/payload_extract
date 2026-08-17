@@ -7,7 +7,7 @@
 
 namespace skkk {
 	void FileOperation::initExcInfo(int errCode) const {
-		excInfo = std::format("name: {:18s}, type: {}, code({}): {:s}",
+		excInfo = std::format("name: {:18}, type: {}, code({}): {:s}",
 		                      partName, errCode, type, strerror(abs(errCode)));
 	}
 
@@ -27,10 +27,11 @@ namespace skkk {
 		                                 oldHash.size());
 		newHashHexStr = bytesToHexString(reinterpret_cast<const uint8_t *>(newHash.data()),
 		                                 newHash.size());
+		simpleInfo = std::format("name: {:18} size: {:<12} sha256: {}", name, size, newHashHexStr);
 	}
 
-	void PartitionInfo::printInfo() const {
-		std::println("name: {:18} size: {:<12} sha256: {}", name, size, newHashHexStr);
+	void PartitionInfo::printSimpleInfo() const {
+		std::println("{}", simpleInfo);
 	}
 
 	bool PartitionInfo::checkExtractionSuccessful() const {

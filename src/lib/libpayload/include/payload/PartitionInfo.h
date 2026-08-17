@@ -123,6 +123,8 @@ namespace skkk {
 			Extent fecExtent;
 			// The number of FEC roots.
 			uint32_t fecRoots = 2;
+			// Simple info
+			std::string simpleInfo;
 
 			std::vector<FileOperation> operations;
 
@@ -138,7 +140,7 @@ namespace skkk {
 			              const std::string &oldHash, uint64_t oldHashSize, const std::string &newHash,
 			              uint64_t newHashSize);
 
-			void printInfo() const;
+			void printSimpleInfo() const;
 
 			bool checkExtractionSuccessful() const;
 
