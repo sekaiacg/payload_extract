@@ -125,6 +125,7 @@ jobs:
       CUSTOM_CLANG_PATH: "/opt/clang"
       GCC_AARCH64_TOOLS_PATH: "/opt/gcc"
       LLVM_MINGW_PATH: "/opt/mingw"
+      LLVM_MINGW_VERSION: "20260616"
 
     steps:
       - name: Setup LLVM
@@ -142,10 +143,10 @@ jobs:
 
       - name: Setup llvm-mingw tools
         run: |
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20260421/llvm-mingw-20260421-ucrt-ubuntu-22.04-x86_64.tar.xz
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz
           mkdir ${LLVM_MINGW_PATH}
-          tar -xf llvm-mingw-20260421-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
-          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-20260421-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
+          tar -xf llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
+          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v6
