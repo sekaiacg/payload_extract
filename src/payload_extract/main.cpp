@@ -18,6 +18,7 @@ using namespace skkk;
 
 static void usage(const ExtractOperation &eo) {
 	char buf[4096] = {};
+	// @formatter:off
 	snprintf(buf, sizeof(buf) - 1,
 			 BROWN("usage: [options]") "\n"
 			 "  " GREEN2_BOLD("-h, --help") "           " BROWN("Display this help and exit") "\n"
@@ -44,7 +45,8 @@ static void usage(const ExtractOperation &eo) {
 	         eo.limitHardwareConcurrency,
 	         eo.hardwareConcurrency
 	);
-	std::println( "{}", buf);
+	// @formatter:on
+	std::println("{}", buf);
 }
 
 #ifndef PAYLOAD_EXTRACT_VERSION

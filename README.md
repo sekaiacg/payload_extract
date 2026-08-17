@@ -92,7 +92,22 @@ d19c097ea9240712a4652df86f3911a721242f275dd32c5ab5b474f5d01528a8  ./full_patched
 
 ```console
 $ ./payload_extract -i payload.bin -P boot
-PartitionSize:  55 MinorVersion:  9 SecurityPatchLevel: 2025-10-01
+PayloadInfo:
+    PartitionSize: 55
+    MinorVersion: 0
+    SecurityPatchLevel: 2026-08-01
+DynamicPartition:
+    name: qti_dynamic_partitions
+    size: 99111286010
+    items: ["odm", "product", "system", "system_dlkm", "system_ext", "vendor", "vendor_dlkm"]
+snapshot:
+    snapshot_enabled: true
+    compression_factor: 65536
+VABC:
+    vabc_enabled: true
+    vabc_compression_param: lz4
+    cow_version: 3
+
 name: boot               size: 100663296    sha256: 73fc2ce02d6b6b3f4bef6419b99e09d1e5ea690edaa0b80adced20f13730f3f6
 ```
 
@@ -132,7 +147,8 @@ $ ./payload_extract -i payload.bin -o ./full -X boot --out-config=./config.txt
 
 </details>
 
-**You can use [extract.erofs](https://github.com/sekaiacg/erofs-utils/releases) to continue extracting data from the erofs format image.**
+**You can use [extract.erofs](https://github.com/sekaiacg/erofs-utils/releases) to continue extracting data from the
+erofs format image.**
 
 **Contributors**
 

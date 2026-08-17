@@ -1,4 +1,4 @@
-VERSION="$(cat ./VERSION)"
+VERSION="$(cat ./src/payload_extract/VERSION)"
 OUT="./out"
 BUILD_DIR="./"
 

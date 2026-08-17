@@ -17,12 +17,9 @@ target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${TARGET_CFLAGS}>"
 )
 
-if (DEFINED PAYLOAD_EXTRACT_VERSION)
-    target_compile_definitions(${TARGET} PRIVATE "-DPAYLOAD_EXTRACT_VERSION=\"${PAYLOAD_EXTRACT_VERSION}\"")
-    MESSAGE(STATUS "[payload_extract] version is ${PAYLOAD_EXTRACT_VERSION}")
-else ()
-    MESSAGE(WARNING "[payload_extract] version is v0.0.0")
-endif ()
+file(STRINGS "VERSION" PAYLOAD_EXTRACT_VERSION LIMIT_COUNT 1)
+target_compile_definitions(${TARGET} PRIVATE "-DPAYLOAD_EXTRACT_VERSION=\"${PAYLOAD_EXTRACT_VERSION}\"")
+MESSAGE(STATUS "[payload_extract] version is ${PAYLOAD_EXTRACT_VERSION}")
 
 set(ENV{TZ} UTC-8)
 execute_process(
