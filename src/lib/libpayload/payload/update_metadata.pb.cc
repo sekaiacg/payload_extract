@@ -193,6 +193,7 @@ PROTOBUF_CONSTEXPR DynamicPartitionMetadata::DynamicPartitionMetadata(
   , /*decltype(_impl_.vabc_feature_set_)*/nullptr
   , /*decltype(_impl_.snapshot_enabled_)*/false
   , /*decltype(_impl_.vabc_enabled_)*/false
+  , /*decltype(_impl_.disable_ublk_)*/false
   , /*decltype(_impl_.cow_version_)*/0u
   , /*decltype(_impl_.compression_factor_)*/::uint64_t{0u}} {}
 struct DynamicPartitionMetadataDefaultTypeInternal {
@@ -421,13 +422,15 @@ const ::uint32_t TableStruct_update_5fmetadata_2eproto::offsets[] PROTOBUF_SECTI
   PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::DynamicPartitionMetadata, _impl_.cow_version_),
   PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::DynamicPartitionMetadata, _impl_.vabc_feature_set_),
   PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::DynamicPartitionMetadata, _impl_.compression_factor_),
+  PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::DynamicPartitionMetadata, _impl_.disable_ublk_),
   ~0u,
   2,
   3,
   0,
-  4,
-  1,
   5,
+  1,
+  6,
+  4,
   PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::ApexInfo, _impl_._has_bits_),
   PROTOBUF_FIELD_OFFSET(::chromeos_update_engine::ApexInfo, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -486,10 +489,10 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 77, 103, -1, sizeof(::chromeos_update_engine::PartitionUpdate)},
   { 123, 132, -1, sizeof(::chromeos_update_engine::DynamicPartitionGroup)},
   { 135, 143, -1, sizeof(::chromeos_update_engine::VABCFeatureSet)},
-  { 145, 158, -1, sizeof(::chromeos_update_engine::DynamicPartitionMetadata)},
-  { 165, 175, -1, sizeof(::chromeos_update_engine::ApexInfo)},
-  { 179, -1, -1, sizeof(::chromeos_update_engine::ApexMetadata)},
-  { 186, 202, -1, sizeof(::chromeos_update_engine::DeltaArchiveManifest)},
+  { 145, 159, -1, sizeof(::chromeos_update_engine::DynamicPartitionMetadata)},
+  { 167, 177, -1, sizeof(::chromeos_update_engine::ApexInfo)},
+  { 181, -1, -1, sizeof(::chromeos_update_engine::ApexMetadata)},
+  { 188, 204, -1, sizeof(::chromeos_update_engine::DeltaArchiveManifest)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -562,34 +565,34 @@ const char descriptor_table_protodef_update_5fmetadata_2eproto[] PROTOBUF_SECTIO
   "_max\030\024 \001(\004\"L\n\025DynamicPartitionGroup\022\014\n\004n"
   "ame\030\001 \002(\t\022\014\n\004size\030\002 \001(\004\022\027\n\017partition_nam"
   "es\030\003 \003(\t\"8\n\016VABCFeatureSet\022\020\n\010threaded\030\001"
-  " \001(\010\022\024\n\014batch_writes\030\002 \001(\010\"\234\002\n\030DynamicPa"
+  " \001(\010\022\024\n\014batch_writes\030\002 \001(\010\"\262\002\n\030DynamicPa"
   "rtitionMetadata\022=\n\006groups\030\001 \003(\0132-.chrome"
   "os_update_engine.DynamicPartitionGroup\022\030"
   "\n\020snapshot_enabled\030\002 \001(\010\022\024\n\014vabc_enabled"
   "\030\003 \001(\010\022\036\n\026vabc_compression_param\030\004 \001(\t\022\023"
   "\n\013cow_version\030\005 \001(\r\022@\n\020vabc_feature_set\030"
   "\006 \001(\0132&.chromeos_update_engine.VABCFeatu"
-  "reSet\022\032\n\022compression_factor\030\007 \001(\004\"c\n\010Ape"
-  "xInfo\022\024\n\014package_name\030\001 \001(\t\022\017\n\007version\030\002"
-  " \001(\003\022\025\n\ris_compressed\030\003 \001(\010\022\031\n\021decompres"
-  "sed_size\030\004 \001(\003\"C\n\014ApexMetadata\0223\n\tapex_i"
-  "nfo\030\001 \003(\0132 .chromeos_update_engine.ApexI"
-  "nfo\"\303\003\n\024DeltaArchiveManifest\022\030\n\nblock_si"
-  "ze\030\003 \001(\r:\0044096\022\031\n\021signatures_offset\030\004 \001("
-  "\004\022\027\n\017signatures_size\030\005 \001(\004\022\030\n\rminor_vers"
-  "ion\030\014 \001(\r:\0010\022;\n\npartitions\030\r \003(\0132\'.chrom"
-  "eos_update_engine.PartitionUpdate\022\025\n\rmax"
-  "_timestamp\030\016 \001(\003\022T\n\032dynamic_partition_me"
-  "tadata\030\017 \001(\01320.chromeos_update_engine.Dy"
-  "namicPartitionMetadata\022\026\n\016partial_update"
-  "\030\020 \001(\010\0223\n\tapex_info\030\021 \003(\0132 .chromeos_upd"
-  "ate_engine.ApexInfo\022\034\n\024security_patch_le"
-  "vel\030\022 \001(\tJ\004\010\001\020\002J\004\010\002\020\003J\004\010\006\020\007J\004\010\007\020\010J\004\010\010\020\tJ"
-  "\004\010\t\020\nJ\004\010\n\020\013J\004\010\013\020\014"
+  "reSet\022\032\n\022compression_factor\030\007 \001(\004\022\024\n\014dis"
+  "able_ublk\030\010 \001(\010\"c\n\010ApexInfo\022\024\n\014package_n"
+  "ame\030\001 \001(\t\022\017\n\007version\030\002 \001(\003\022\025\n\ris_compres"
+  "sed\030\003 \001(\010\022\031\n\021decompressed_size\030\004 \001(\003\"C\n\014"
+  "ApexMetadata\0223\n\tapex_info\030\001 \003(\0132 .chrome"
+  "os_update_engine.ApexInfo\"\303\003\n\024DeltaArchi"
+  "veManifest\022\030\n\nblock_size\030\003 \001(\r:\0044096\022\031\n\021"
+  "signatures_offset\030\004 \001(\004\022\027\n\017signatures_si"
+  "ze\030\005 \001(\004\022\030\n\rminor_version\030\014 \001(\r:\0010\022;\n\npa"
+  "rtitions\030\r \003(\0132\'.chromeos_update_engine."
+  "PartitionUpdate\022\025\n\rmax_timestamp\030\016 \001(\003\022T"
+  "\n\032dynamic_partition_metadata\030\017 \001(\01320.chr"
+  "omeos_update_engine.DynamicPartitionMeta"
+  "data\022\026\n\016partial_update\030\020 \001(\010\0223\n\tapex_inf"
+  "o\030\021 \003(\0132 .chromeos_update_engine.ApexInf"
+  "o\022\034\n\024security_patch_level\030\022 \001(\tJ\004\010\001\020\002J\004\010"
+  "\002\020\003J\004\010\006\020\007J\004\010\007\020\010J\004\010\010\020\tJ\004\010\t\020\nJ\004\010\n\020\013J\004\010\013\020\014"
   ;
 static ::_pbi::once_flag descriptor_table_update_5fmetadata_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_update_5fmetadata_2eproto = {
-    false, false, 3057, descriptor_table_protodef_update_5fmetadata_2eproto,
+    false, false, 3079, descriptor_table_protodef_update_5fmetadata_2eproto,
     "update_metadata.proto",
     &descriptor_table_update_5fmetadata_2eproto_once, nullptr, 0, 13,
     schemas, file_default_instances, TableStruct_update_5fmetadata_2eproto::offsets,
@@ -4109,14 +4112,17 @@ class DynamicPartitionMetadata::_Internal {
     (*has_bits)[0] |= 1u;
   }
   static void set_has_cow_version(HasBits* has_bits) {
-    (*has_bits)[0] |= 16u;
+    (*has_bits)[0] |= 32u;
   }
   static const ::chromeos_update_engine::VABCFeatureSet& vabc_feature_set(const DynamicPartitionMetadata* msg);
   static void set_has_vabc_feature_set(HasBits* has_bits) {
     (*has_bits)[0] |= 2u;
   }
   static void set_has_compression_factor(HasBits* has_bits) {
-    (*has_bits)[0] |= 32u;
+    (*has_bits)[0] |= 64u;
+  }
+  static void set_has_disable_ublk(HasBits* has_bits) {
+    (*has_bits)[0] |= 16u;
   }
 };
 
@@ -4141,6 +4147,7 @@ DynamicPartitionMetadata::DynamicPartitionMetadata(const DynamicPartitionMetadat
     , decltype(_impl_.vabc_feature_set_){nullptr}
     , decltype(_impl_.snapshot_enabled_){}
     , decltype(_impl_.vabc_enabled_){}
+    , decltype(_impl_.disable_ublk_){}
     , decltype(_impl_.cow_version_){}
     , decltype(_impl_.compression_factor_){}};
 
@@ -4174,6 +4181,7 @@ inline void DynamicPartitionMetadata::SharedCtor(
     , decltype(_impl_.vabc_feature_set_){nullptr}
     , decltype(_impl_.snapshot_enabled_){false}
     , decltype(_impl_.vabc_enabled_){false}
+    , decltype(_impl_.disable_ublk_){false}
     , decltype(_impl_.cow_version_){0u}
     , decltype(_impl_.compression_factor_){::uint64_t{0u}}
   };
@@ -4220,7 +4228,7 @@ void DynamicPartitionMetadata::Clear() {
       _impl_.vabc_feature_set_->Clear();
     }
   }
-  if (cached_has_bits & 0x0000003cu) {
+  if (cached_has_bits & 0x0000007cu) {
     ::memset(&_impl_.snapshot_enabled_, 0, static_cast<size_t>(
         reinterpret_cast<char*>(&_impl_.compression_factor_) -
         reinterpret_cast<char*>(&_impl_.snapshot_enabled_)) + sizeof(_impl_.compression_factor_));
@@ -4312,6 +4320,16 @@ const char* DynamicPartitionMetadata::_InternalParse(const char* ptr, ::_pbi::Pa
           goto handle_unusual;
         }
         continue;
+      // optional bool disable_ublk = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _Internal::set_has_disable_ublk(&has_bits);
+          _impl_.disable_ublk_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -4374,7 +4392,7 @@ failure:
   }
 
   // optional uint32 cow_version = 5;
-  if (cached_has_bits & 0x00000010u) {
+  if (cached_has_bits & 0x00000020u) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteUInt32ToArray(5, this->_internal_cow_version(), target);
   }
@@ -4387,9 +4405,15 @@ failure:
   }
 
   // optional uint64 compression_factor = 7;
-  if (cached_has_bits & 0x00000020u) {
+  if (cached_has_bits & 0x00000040u) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteUInt64ToArray(7, this->_internal_compression_factor(), target);
+  }
+
+  // optional bool disable_ublk = 8;
+  if (cached_has_bits & 0x00000010u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(8, this->_internal_disable_ublk(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -4416,7 +4440,7 @@ size_t DynamicPartitionMetadata::ByteSizeLong() const {
   }
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x0000003fu) {
+  if (cached_has_bits & 0x0000007fu) {
     // optional string vabc_compression_param = 4;
     if (cached_has_bits & 0x00000001u) {
       total_size += 1 +
@@ -4441,13 +4465,18 @@ size_t DynamicPartitionMetadata::ByteSizeLong() const {
       total_size += 1 + 1;
     }
 
-    // optional uint32 cow_version = 5;
+    // optional bool disable_ublk = 8;
     if (cached_has_bits & 0x00000010u) {
+      total_size += 1 + 1;
+    }
+
+    // optional uint32 cow_version = 5;
+    if (cached_has_bits & 0x00000020u) {
       total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(this->_internal_cow_version());
     }
 
     // optional uint64 compression_factor = 7;
-    if (cached_has_bits & 0x00000020u) {
+    if (cached_has_bits & 0x00000040u) {
       total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_compression_factor());
     }
 
@@ -4472,7 +4501,7 @@ void DynamicPartitionMetadata::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_ms
 
   _this->_impl_.groups_.MergeFrom(from._impl_.groups_);
   cached_has_bits = from._impl_._has_bits_[0];
-  if (cached_has_bits & 0x0000003fu) {
+  if (cached_has_bits & 0x0000007fu) {
     if (cached_has_bits & 0x00000001u) {
       _this->_internal_set_vabc_compression_param(from._internal_vabc_compression_param());
     }
@@ -4487,9 +4516,12 @@ void DynamicPartitionMetadata::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_ms
       _this->_impl_.vabc_enabled_ = from._impl_.vabc_enabled_;
     }
     if (cached_has_bits & 0x00000010u) {
-      _this->_impl_.cow_version_ = from._impl_.cow_version_;
+      _this->_impl_.disable_ublk_ = from._impl_.disable_ublk_;
     }
     if (cached_has_bits & 0x00000020u) {
+      _this->_impl_.cow_version_ = from._impl_.cow_version_;
+    }
+    if (cached_has_bits & 0x00000040u) {
       _this->_impl_.compression_factor_ = from._impl_.compression_factor_;
     }
     _this->_impl_._has_bits_[0] |= cached_has_bits;

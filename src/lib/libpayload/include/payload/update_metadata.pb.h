@@ -2559,6 +2559,7 @@ class DynamicPartitionMetadata final :
     kVabcFeatureSetFieldNumber = 6,
     kSnapshotEnabledFieldNumber = 2,
     kVabcEnabledFieldNumber = 3,
+    kDisableUblkFieldNumber = 8,
     kCowVersionFieldNumber = 5,
     kCompressionFactorFieldNumber = 7,
   };
@@ -2642,6 +2643,19 @@ class DynamicPartitionMetadata final :
   void _internal_set_vabc_enabled(bool value);
   public:
 
+  // optional bool disable_ublk = 8;
+  bool has_disable_ublk() const;
+  private:
+  bool _internal_has_disable_ublk() const;
+  public:
+  void clear_disable_ublk();
+  bool disable_ublk() const;
+  void set_disable_ublk(bool value);
+  private:
+  bool _internal_disable_ublk() const;
+  void _internal_set_disable_ublk(bool value);
+  public:
+
   // optional uint32 cow_version = 5;
   bool has_cow_version() const;
   private:
@@ -2683,6 +2697,7 @@ class DynamicPartitionMetadata final :
     ::chromeos_update_engine::VABCFeatureSet* vabc_feature_set_;
     bool snapshot_enabled_;
     bool vabc_enabled_;
+    bool disable_ublk_;
     ::uint32_t cow_version_;
     ::uint64_t compression_factor_;
   };
@@ -5948,7 +5963,7 @@ inline void DynamicPartitionMetadata::set_allocated_vabc_compression_param(std::
 
 // optional uint32 cow_version = 5;
 inline bool DynamicPartitionMetadata::_internal_has_cow_version() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000010u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000020u) != 0;
   return value;
 }
 inline bool DynamicPartitionMetadata::has_cow_version() const {
@@ -5956,7 +5971,7 @@ inline bool DynamicPartitionMetadata::has_cow_version() const {
 }
 inline void DynamicPartitionMetadata::clear_cow_version() {
   _impl_.cow_version_ = 0u;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline ::uint32_t DynamicPartitionMetadata::_internal_cow_version() const {
   return _impl_.cow_version_;
@@ -5966,7 +5981,7 @@ inline ::uint32_t DynamicPartitionMetadata::cow_version() const {
   return _internal_cow_version();
 }
 inline void DynamicPartitionMetadata::_internal_set_cow_version(::uint32_t value) {
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   _impl_.cow_version_ = value;
 }
 inline void DynamicPartitionMetadata::set_cow_version(::uint32_t value) {
@@ -6066,7 +6081,7 @@ inline void DynamicPartitionMetadata::set_allocated_vabc_feature_set(::chromeos_
 
 // optional uint64 compression_factor = 7;
 inline bool DynamicPartitionMetadata::_internal_has_compression_factor() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000020u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000040u) != 0;
   return value;
 }
 inline bool DynamicPartitionMetadata::has_compression_factor() const {
@@ -6074,7 +6089,7 @@ inline bool DynamicPartitionMetadata::has_compression_factor() const {
 }
 inline void DynamicPartitionMetadata::clear_compression_factor() {
   _impl_.compression_factor_ = ::uint64_t{0u};
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000040u;
 }
 inline ::uint64_t DynamicPartitionMetadata::_internal_compression_factor() const {
   return _impl_.compression_factor_;
@@ -6084,12 +6099,40 @@ inline ::uint64_t DynamicPartitionMetadata::compression_factor() const {
   return _internal_compression_factor();
 }
 inline void DynamicPartitionMetadata::_internal_set_compression_factor(::uint64_t value) {
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000040u;
   _impl_.compression_factor_ = value;
 }
 inline void DynamicPartitionMetadata::set_compression_factor(::uint64_t value) {
   _internal_set_compression_factor(value);
   // @@protoc_insertion_point(field_set:chromeos_update_engine.DynamicPartitionMetadata.compression_factor)
+}
+
+// optional bool disable_ublk = 8;
+inline bool DynamicPartitionMetadata::_internal_has_disable_ublk() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000010u) != 0;
+  return value;
+}
+inline bool DynamicPartitionMetadata::has_disable_ublk() const {
+  return _internal_has_disable_ublk();
+}
+inline void DynamicPartitionMetadata::clear_disable_ublk() {
+  _impl_.disable_ublk_ = false;
+  _impl_._has_bits_[0] &= ~0x00000010u;
+}
+inline bool DynamicPartitionMetadata::_internal_disable_ublk() const {
+  return _impl_.disable_ublk_;
+}
+inline bool DynamicPartitionMetadata::disable_ublk() const {
+  // @@protoc_insertion_point(field_get:chromeos_update_engine.DynamicPartitionMetadata.disable_ublk)
+  return _internal_disable_ublk();
+}
+inline void DynamicPartitionMetadata::_internal_set_disable_ublk(bool value) {
+  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_.disable_ublk_ = value;
+}
+inline void DynamicPartitionMetadata::set_disable_ublk(bool value) {
+  _internal_set_disable_ublk(value);
+  // @@protoc_insertion_point(field_set:chromeos_update_engine.DynamicPartitionMetadata.disable_ublk)
 }
 
 // -------------------------------------------------------------------
