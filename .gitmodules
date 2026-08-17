@@ -5,7 +5,7 @@
 [submodule "src/lib/bzip2"]
 	path = src/lib/bzip2
 	url = https://android.googlesource.com/platform/external/bzip2
-	branch = main
+	branch = android17-release
 [submodule "src/lib/protobuf"]
 	path = src/lib/protobuf
 	url = https://android.googlesource.com/platform/external/protobuf

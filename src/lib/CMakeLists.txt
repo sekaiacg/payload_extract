@@ -3,6 +3,8 @@ include(libbz2.cmake)
 include(libfec_rs.cmake)
 include(libprotobuf-cpp-full.cmake)
 
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+
 # BROTLI
 set(BUILD_SHARED_LIBS OFF)
 set(BROTLI_BUNDLED_MODE OFF)
