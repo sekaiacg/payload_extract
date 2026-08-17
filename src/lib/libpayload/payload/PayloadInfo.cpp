@@ -259,6 +259,7 @@ namespace skkk {
 		if (!parseHeader()) goto out;
 		if (!readHeaderData()) goto out;
 		if (!parseManifestData()) goto out;
+		if (!dynamicPartitionMetadata.parseDynamicPartitionMetadata(manifest)) goto out;
 		if (!parsePartitionInfo()) goto out;
 		return true;
 	out:

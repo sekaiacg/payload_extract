@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include "DynamicPartitionMetadata.h"
 #include "ExtractConfig.h"
 #include "HttpDownload.h"
 #include "PartitionInfo.h"
@@ -34,6 +35,7 @@ namespace skkk {
 			std::vector<ZipFileItem> zipFiles;
 			PayloadHeader pHeader;
 			DeltaArchiveManifest manifest;
+			DynamicPartitionMetadata dynamicPartitionMetadata;
 			PartitionInfoMap partitionInfoMap;
 
 		public:
