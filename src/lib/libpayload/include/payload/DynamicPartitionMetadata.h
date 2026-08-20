@@ -31,7 +31,9 @@ namespace skkk {
 
 	class VabcFeatureSet {
 		public:
+			bool hasThreaded = false;
 			bool threaded = false;
+			bool hasBatchWrites = false;
 			bool batchWrites = false;
 	};
 
@@ -40,7 +42,9 @@ namespace skkk {
 			std::vector<DynamicPartition> dynamicPartitions;
 			bool snapshotEnabled = false;
 			bool vabcEnabled = false;
+			bool hasVabcCompressionParam;
 			std::string vabcCompressionParam;
+			bool hasCowVersion;
 			uint32_t cowVersion = false;
 			bool hasVabcFeatureSet = false;
 			VabcFeatureSet vabcFeatureSet;

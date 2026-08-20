@@ -253,6 +253,14 @@ namespace skkk {
 		return partitionsSize == partitionInfoMap.size();
 	}
 
+	void PayloadInfo::printInfo() {
+		constexpr uint32_t widthSecond = 4;
+		std::println("PayloadInfo:");
+		std::println("{:{}}PartitionSize: {}", "", widthSecond, partitionInfoMap.size());
+		std::println("{:{}}MinorVersion: {}", "", widthSecond, pHeader.minorVersion);
+		std::println("{:{}}SecurityPatchLevel: {}", "", widthSecond, pHeader.securityPatchLevel);
+	}
+
 	bool PayloadInfo::initPayloadInfo() {
 		if (!initPayloadFile()) goto out;
 		if (!handleOffset()) goto out;

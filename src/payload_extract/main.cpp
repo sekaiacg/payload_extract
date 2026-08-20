@@ -327,7 +327,7 @@ int main(const int argc, char *argv[]) {
 	vw->initHashTreeLevel();
 
 	if (eo.isPrintTarget || eo.isPrintAll) {
-		pw->printPartitionsInfo();
+		pw->printPayloadInfo();
 		goto exit;
 	}
 
