@@ -15,25 +15,39 @@ namespace skkk {
 	}
 
 	void DynamicPartitionMetadata::initInfo() {
+		constexpr uint32_t widthSecond = 4;
+		constexpr uint32_t widthThird = widthSecond * 2;
 		for (auto &dp: dynamicPartitions) {
-			dp.info = std::format("    name: {}\n    size: {}\n    items: {}",
+			dp.info = std::format("{:{}s}name: {}\n    size: {}\n    items: {}", "", widthSecond,
 			                      dp.name, dp.size, dp.partitionNames);
 		}
 		if (snapshotEnabled) {
-			info += std::format("snapshot:\n    snapshot_enabled: {}\n", snapshotEnabled);
+			info += std::format("Snapshot:\n");
+			info += std::format("{:{}s}snapshot_enabled: {}\n", "", widthSecond, snapshotEnabled);
 			if (hasCompressionFactor) {
-				info += std::format("    compression_factor: {}\n", compressionFactor);
+				info += std::format("{:{}s}compression_factor: {}\n", "", widthSecond, compressionFactor);
 			}
 			if (hasDisableUblk) {
-				info += std::format("    disable_ublk: {}\n", disableUblk);
+				info += std::format("{:{}s}disable_ublk: {}\n", "", widthSecond, disableUblk);
 			}
 		}
 		if (vabcEnabled) {
-			info += std::format("VABC:\n    vabc_enabled: {}\n    vabc_compression_param: {}\n    cow_version: {}\n",
-			                    vabcEnabled, vabcCompressionParam, cowVersion);
+			info += std::format("VABC:\n");
+			info += std::format("{:{}s}vabc_enabled: {}\n", "", widthSecond, vabcEnabled);
+			if (hasVabcCompressionParam) {
+				info += std::format("{:{}s}vabc_compression_param: {}\n", "", widthSecond, vabcCompressionParam);
+			}
+			if (hasCowVersion) {
+				info += std::format("{:{}s}cow_version: {}\n", "", widthSecond, cowVersion);
+			}
 			if (hasVabcFeatureSet) {
-				info += std::format("    vabc_feature_set: {{ threaded: {}, batch_writes: {}}}\n",
-				                    vabcFeatureSet.threaded, vabcFeatureSet.batchWrites);
+				info += std::format("{:{}s}vabc_feature_set:\n", "", widthSecond);
+				if (vabcFeatureSet.hasThreaded) {
+					info += std::format("{:{}s}threaded: {}\n", "", widthThird, vabcFeatureSet.threaded);
+				}
+				if (vabcFeatureSet.hasBatchWrites) {
+					info += std::format("{:{}s}batch_writes: {}\n", "", widthThird, vabcFeatureSet.batchWrites);
+				}
 			}
 		}
 	}
@@ -52,18 +66,22 @@ namespace skkk {
 				vabcEnabled = dpm.has_vabc_enabled();
 			}
 			if (dpm.has_vabc_compression_param()) {
+				hasVabcCompressionParam = true;
 				vabcCompressionParam = dpm.vabc_compression_param();
 			}
 			if (dpm.has_cow_version()) {
+				hasCowVersion = true;
 				cowVersion = dpm.cow_version();
 			}
 			if (dpm.has_vabc_feature_set()) {
 				hasVabcFeatureSet = true;
 				const auto &features = dpm.vabc_feature_set();
 				if (features.has_threaded()) {
+					vabcFeatureSet.hasThreaded = true;
 					vabcFeatureSet.threaded = features.threaded();
 				}
 				if (features.has_batch_writes()) {
+					vabcFeatureSet.hasBatchWrites = true;
 					vabcFeatureSet.batchWrites = features.batch_writes();
 				}
 			}

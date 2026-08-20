@@ -75,6 +75,8 @@ namespace skkk {
 
 			bool parsePartitionInfo();
 
+			void printInfo();
+
 			virtual bool initPayloadInfo();
 
 			void closePayloadFile();

@@ -100,13 +100,17 @@ DynamicPartition:
     name: qti_dynamic_partitions
     size: 99111286010
     items: ["odm", "product", "system", "system_dlkm", "system_ext", "vendor", "vendor_dlkm"]
-snapshot:
+Snapshot:
     snapshot_enabled: true
     compression_factor: 65536
+    disable_ublk: false
 VABC:
     vabc_enabled: true
     vabc_compression_param: lz4
     cow_version: 3
+    vabc_feature_set:
+        threaded: false
+        batch_writes: false
 
 name: boot               size: 100663296    sha256: 73fc2ce02d6b6b3f4bef6419b99e09d1e5ea690edaa0b80adced20f13730f3f6
 ```

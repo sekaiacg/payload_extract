@@ -49,7 +49,7 @@ namespace skkk {
 
 			bool initPartitionsByTarget();
 
-			void printPartitionsInfo() const;
+			void printPayloadInfo() const;
 
 			bool createOutDir() const;
 
