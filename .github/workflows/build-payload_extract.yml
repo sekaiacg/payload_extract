@@ -11,11 +11,11 @@ on:
       version:
         description: 'Version'
         required: false
-        default: 'v1.3.2-26081700'
+        default: 'v1.3.3-26102600'
 
 jobs:
   release:
-    needs: [ Build-android, Build-on-linux, Build-on-macOS ]
+    needs: [ Build-android, Build-linux, Build-macOS, Build-windows ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 1
@@ -114,7 +114,7 @@ jobs:
           name: ${{ steps.Artifact.outputs.androidX86Name }}
           path: '${{ steps.Artifact.outputs.androidX86Dir }}/${{ steps.Artifact.outputs.androidX86Name }}/*'
 
-  Build-on-linux:
+  Build-linux:
     runs-on: ubuntu-latest
     env:
       TZ: UTC-8
@@ -122,10 +122,6 @@ jobs:
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
       CCACHE_BASEDIR: "${{ github.workspace }}"
-      CUSTOM_CLANG_PATH: "/opt/clang"
-      GCC_AARCH64_TOOLS_PATH: "/opt/gcc"
-      LLVM_MINGW_PATH: "/opt/mingw"
-      LLVM_MINGW_VERSION: "20260616"
 
     steps:
       - name: Setup LLVM
@@ -141,15 +137,8 @@ jobs:
         run: |
           sudo apt update && sudo apt install cpp-14-loongarch64-linux-gnu gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu
 
-      - name: Setup llvm-mingw tools
-        run: |
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz
-          mkdir ${LLVM_MINGW_PATH}
-          tar -xf llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
-          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
-
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 1
@@ -179,12 +168,6 @@ jobs:
           echo "linuxLoongarch64Dir=target/Linux_loongarch64" >> $GITHUB_OUTPUT
           linuxLoongarch64Name=`ls -d target/Linux_loongarch64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxLoongarch64Name=$linuxLoongarch64Name" >> $GITHUB_OUTPUT
 
-          echo "windowsX86x64Dir=target/Windows_x86_64" >> $GITHUB_OUTPUT
-          windowsX86x64Name=`ls -d target/Windows_x86_64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "windowsX86x64Name=$windowsX86x64Name" >> $GITHUB_OUTPUT
-
-          echo "windowsAarch64Dir=target/Windows_aarch64" >> $GITHUB_OUTPUT
-          windowsAarch64Name=`ls -d target/Windows_aarch64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "windowsAarch64Name=$windowsAarch64Name" >> $GITHUB_OUTPUT
-
       - name: Upload payload_extract Linux_x86_64
         if: success()
         uses: actions/upload-artifact@v7
@@ -206,21 +189,7 @@ jobs:
           name: ${{ steps.Artifact.outputs.linuxLoongarch64Name }}
           path: '${{ steps.Artifact.outputs.linuxLoongarch64Dir }}/${{ steps.Artifact.outputs.linuxLoongarch64Name }}/*'
 
-      - name: Upload payload_extract Windows_x86_64
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.Artifact.outputs.windowsX86x64Name }}
-          path: '${{ steps.Artifact.outputs.windowsX86x64Dir }}/${{ steps.Artifact.outputs.windowsX86x64Name }}/*'
-
-      - name: Upload payload_extract Windows_aarch64
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.Artifact.outputs.windowsAarch64Name }}
-          path: '${{ steps.Artifact.outputs.windowsAarch64Dir }}/${{ steps.Artifact.outputs.windowsAarch64Name }}/*'
-
-  Build-on-macOS:
+  Build-macOS:
     runs-on: macos-latest
     env:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
@@ -233,7 +202,7 @@ jobs:
         run: brew install ccache
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
           fetch-depth: 1
@@ -273,3 +242,69 @@ jobs:
         with:
           name: ${{ steps.prepareArtifact.outputs.darwinAarch64Name }}
           path: '${{ steps.prepareArtifact.outputs.darwinAarch64Dir }}/${{ steps.prepareArtifact.outputs.darwinAarch64Name }}/*'
+
+  Build-windows:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC-8
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+      LLVM_MINGW_PATH: "/opt/mingw"
+      LLVM_MINGW_VERSION: "20261020"
+
+    steps:
+      - name: Setup LLVM
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 23
+
+      - name: Setup llvm-mingw tools
+        run: |
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz
+          mkdir ${LLVM_MINGW_PATH}
+          tar -xf llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz -C ${LLVM_MINGW_PATH}
+          echo "LLVM_MINGW_PATH=${LLVM_MINGW_PATH}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: "Windows_${{ runner.os }}"
+          restore-keys: "Windows_${{ runner.os }}"
+
+      - name: Build payload_extract
+        run: |
+          chmod a+x build.sh
+          ./build.sh Windows
+
+      - name: Prepare artifact
+        if: success()
+        id: Artifact
+        run: |
+          echo "windowsX86x64Dir=target/Windows_x86_64" >> $GITHUB_OUTPUT
+          windowsX86x64Name=`ls -d target/Windows_x86_64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "windowsX86x64Name=$windowsX86x64Name" >> $GITHUB_OUTPUT
+
+          echo "windowsAarch64Dir=target/Windows_aarch64" >> $GITHUB_OUTPUT
+          windowsAarch64Name=`ls -d target/Windows_aarch64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "windowsAarch64Name=$windowsAarch64Name" >> $GITHUB_OUTPUT
+
+      - name: Upload payload_extract Windows_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.windowsX86x64Name }}
+          path: '${{ steps.Artifact.outputs.windowsX86x64Dir }}/${{ steps.Artifact.outputs.windowsX86x64Name }}/*'
+
+      - name: Upload payload_extract Windows_aarch64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.windowsAarch64Name }}
+          path: '${{ steps.Artifact.outputs.windowsAarch64Dir }}/${{ steps.Artifact.outputs.windowsAarch64Name }}/*'

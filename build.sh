@@ -159,6 +159,7 @@ if [[ "$1" == "Android" ]]; then
     build_android
 elif [[ "$1" == "Linux" ]]; then
     build_linux
+elif [[ "$1" == "Windows" ]]; then
     build_windows
 else
     exit 1
