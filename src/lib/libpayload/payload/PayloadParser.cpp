@@ -4,7 +4,7 @@
 
 namespace skkk {
 	bool PayloadParser::parse(const ExtractConfig &config) {
-		std::unique_lock lock(_mutex);
+		std::lock_guard lock{_mutex};
 		if (!initialized) {
 			std::shared_ptr<PayloadInfo> info;
 			switch (config.payloadType) {
@@ -33,13 +33,13 @@ namespace skkk {
 	}
 
 	std::shared_ptr<PayloadInfo> PayloadParser::getPayloadInfo() {
-		std::unique_lock lock(_mutex);
+		std::lock_guard lock{_mutex};
 		if (!initialized) throwNoInit();
 		return payloadInfo;
 	}
 
 	std::shared_ptr<PartitionWriter> PayloadParser::getPartitionWriter() {
-		std::unique_lock lock(_mutex);
+		std::lock_guard lock{_mutex};
 		if (!initialized) throwNoInit();
 		return partitionWriter;
 	}

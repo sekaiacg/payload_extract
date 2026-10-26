@@ -14,7 +14,7 @@ namespace skkk {
 	};
 
 	class RemoteUpdater {
-			std::mutex mutex_;
+			std::mutex _mutex;
 			int mapFd = -1;
 			RemoteContext *context = nullptr;
 			static constexpr uint32_t contextSize = sizeof(RemoteContext);

@@ -71,7 +71,7 @@ namespace skkk {
 	}
 
 	const std::shared_ptr<HttpDownload> &ExtractConfig::getHttpDownloadImpl() {
-		std::unique_lock lock(_mutex);
+		std::lock_guard lock{_mutex};
 		if (isUrl && !httpDownload) {
 #if defined(ENABLE_HTTP_CPR)
 			httpDownload = std::make_shared<CprHttpDownload>(payloadPath, sslVerification);

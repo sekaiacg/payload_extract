@@ -86,7 +86,7 @@ namespace skkk {
 	};
 
 	class PartitionInfo {
-		std::shared_ptr<std::mutex> mutex_ = std::make_shared<std::mutex>();
+		std::shared_ptr<std::mutex> _mutex = std::make_shared<std::mutex>();
 
 		public:
 			std::string name;

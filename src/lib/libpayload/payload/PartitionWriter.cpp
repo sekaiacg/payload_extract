@@ -92,7 +92,7 @@ namespace skkk {
 	}
 
 	std::shared_ptr<VerifyWriter> PartitionWriter::getVerifyWriter() const {
-		std::unique_lock lock{_mutex};
+		std::lock_guard lock{_mutex};
 		if (!verifyWriter) {
 			verifyWriter = std::make_shared<VerifyWriter>(partitions, config);
 		}
@@ -100,7 +100,7 @@ namespace skkk {
 	}
 
 	std::shared_ptr<FileWriter> PartitionWriter::getFileWriter() const {
-		std::unique_lock lock{_mutex};
+		std::lock_guard lock{_mutex};
 		if (!fileWriter) {
 			fileWriter = std::make_shared<FileWriter>(config.httpDownload);
 		}

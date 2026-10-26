@@ -47,7 +47,7 @@ namespace skkk {
 
 	void RemoteUpdater::notifyRemoteUpdate() const {
 		if (config.isUrl && context) {
-			std::string url = config.getPayloadPath();
+			const std::string url = config.getPayloadPath();
 			strncpy(context->url, url.c_str(), url.size());
 			context->url[url.size()] = '\0';
 			context->startUpdate = true;
@@ -56,7 +56,7 @@ namespace skkk {
 	}
 
 	void RemoteUpdater::handleRemoteUpdate() {
-		std::unique_lock lock{mutex_};
+		std::lock_guard lock{_mutex};
 		if (context->startUpdate) {
 			printRemoteResult(context->url, true);
 			context->startUpdate = false;

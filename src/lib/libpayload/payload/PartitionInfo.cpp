@@ -41,7 +41,7 @@ namespace skkk {
 	}
 
 	void PartitionInfo::initExcInfoByInitFd(const std::string &path, int errCode) const {
-		std::unique_lock lock{*mutex_};
+		std::lock_guard lock{*_mutex};
 		std::string msg = std::format("Create/Open file err: '{}', code({}): {:s}",
 		                              path, errCode, strerror(abs(errCode)));
 		excInfos.emplace_back(msg);
