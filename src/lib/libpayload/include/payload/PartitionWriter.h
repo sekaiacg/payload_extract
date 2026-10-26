@@ -16,31 +16,27 @@ namespace skkk {
 			const PartitionInfo &partitionInfo;
 			const FileWriter &fileWriter;
 			const FileOperation &operation;
-			const uint8_t *payloadData;
-			const uint8_t *inData;
-			uint8_t *outData;
+			const WriteParam &writeParam;
 			const bool isIncremental;
 
 		public:
 			PartitionWriteContext(const PartitionInfo &partitionInfo, const FileWriter &fileWriter,
-			                      const FileOperation &operation, const uint8_t *payloadData, const uint8_t *inData,
-			                      uint8_t *outData, bool isIncremental)
+			                      const FileOperation &operation, const WriteParam &writeParam, bool isIncremental)
 				: partitionInfo(partitionInfo),
 				  fileWriter(fileWriter),
 				  operation(operation),
-				  payloadData(payloadData),
-				  inData(inData),
-				  outData(outData),
+				  writeParam(writeParam),
 				  isIncremental(isIncremental) {
 			}
 	};
 
 	class PartitionWriter {
-		std::mutex _mutex;
-		const std::shared_ptr<PayloadInfo> &payloadInfo;
+		mutable std::mutex _mutex;
+		const std::shared_ptr<PayloadInfo> payloadInfo;
 		const ExtractConfig &config;
 		std::vector<PartitionInfo> partitions;
-		std::shared_ptr<VerifyWriter> verifyWriter;
+		mutable std::shared_ptr<VerifyWriter> verifyWriter;
+		mutable std::shared_ptr<FileWriter> fileWriter;
 
 		public:
 			explicit PartitionWriter(const std::shared_ptr<PayloadInfo> &payloadInfo);
@@ -61,7 +57,9 @@ namespace skkk {
 
 			const std::vector<PartitionInfo> &getPartitions();
 
-			std::shared_ptr<VerifyWriter> getVerifyWriter();
+			std::shared_ptr<VerifyWriter> getVerifyWriter() const;
+
+			std::shared_ptr<FileWriter> getFileWriter() const;
 
 			bool extractByInfo(const PartitionInfo &info) const;
 

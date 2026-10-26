@@ -2,6 +2,7 @@
 #define PAYLOAD_EXTRACT_BUFFER_H
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 
 namespace skkk {

@@ -1,9 +1,17 @@
 #include <fstream>
+#include <sys/stat.h>
 
-#include "payload/Utils.h"
-#include "payload/common/io.h"
+#include "files/common/io.h"
 
 namespace skkk {
+	uint64_t getFileSize(const std::string &dirPath) {
+		struct stat st = {};
+		if (stat(dirPath.c_str(), &st) == 0) {
+			return st.st_size;
+		}
+		return 0;
+	}
+
 	int openFileRD(const std::string &path) {
 		int fd = open(path.c_str(), O_RDONLY | O_BINARY);
 		return fd > 0 ? fd : -errno;

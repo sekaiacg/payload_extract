@@ -1,5 +1,4 @@
-#ifndef PAYLOAD_EXTRACT_IO_H
-#define PAYLOAD_EXTRACT_IO_H
+#pragma once
 
 #include <cerrno>
 #include <cinttypes>
@@ -11,6 +10,8 @@
 #include "ioDefs.h"
 
 namespace skkk {
+	uint64_t getFileSize(const std::string &dirPath);
+
 	int openFileRD(const std::string &path);
 
 	int openFileRW(const std::string &path);
@@ -27,5 +28,3 @@ namespace skkk {
 
 	bool readAllLines(const std::string &filePath, std::vector<std::string> &result);
 }
-
-#endif //PAYLOAD_EXTRACT_IO_H

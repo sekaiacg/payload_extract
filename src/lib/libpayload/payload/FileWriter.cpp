@@ -7,26 +7,25 @@
 #include "payload/HttpDownload.h"
 #include "payload/update_metadata.pb.h"
 #include "payload/Utils.h"
+#include "files/common/io.h"
 #include "payload/common/Buffer.hpp"
-#include "payload/common/io.h"
-
-using namespace chromeos_update_engine;
 
 namespace skkk {
+	using namespace chromeos_update_engine;
 	static std::random_device rd;
 	static std::mt19937 mt{rd()};
 	static std::uniform_int_distribution<uint32_t> randomWaitTime(1200, 3000);
-
-	static uint32_t getRdWaitTime() {
-		return randomWaitTime(mt);
-	}
 
 	FileWriter::FileWriter(const std::shared_ptr<HttpDownload> &httpDownload)
 		: httpDownload(httpDownload) {
 	}
 
-	int FileWriter::urlRead(uint8_t *buf, const FileOperation &operation) const {
-		FileBuffer fb{buf, 0};
+	uint32_t FileWriter::getRdWaitTime() {
+		return randomWaitTime(mt);
+	}
+
+	int FileWriter::urlRead(uint8_t *data, const FileOperation &operation) const {
+		FileBuffer fb{data, 0};
 
 	retry:
 		if (std::get<0>(httpDownload->download(fb, operation.dataOffset, operation.dataLength))) {
@@ -37,131 +36,122 @@ namespace skkk {
 		goto retry;
 	}
 
-	int FileWriter::commonWrite(const decompressPtr &decompress, const uint8_t *payloadData, uint8_t *outData,
-	                            const FileOperation &operation) const {
+	int FileWriter::extentsRead(const int inFd, uint8_t *outData, const std::vector<Extent> &extents) {
 		int ret = -1;
-		uint8_t *srcData = nullptr;
-		Buffer<uint8_t> srcBuffer;
-		if (httpDownload) {
-			srcBuffer.reserve(operation.dataLength);
-			srcData = srcBuffer.get();
-			urlRead(srcData, operation);
-		} else {
-			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
+		for (const auto &e: extents) {
+			ret = blobRead(inFd, outData, e.dataOffset, e.dataLength);
+			if (ret) return ret;
+			outData += e.dataLength;
 		}
-		if (srcData) {
-			auto &dst = operation.dstExtents[0];
-			Buffer<uint8_t> destBuffer{dst.dataLength};
-			if (auto *destBuf = destBuffer.get()) {
-				uint64_t outDestLength = dst.dataLength;
-				ret = decompress(srcData, operation.dataLength, destBuf, outDestLength);
-				if (!ret) {
-					ret = memcpy(outData + dst.dataOffset, destBuf, dst.dataLength) ? 0 : -EIO;
+		return ret;
+	}
+
+	int FileWriter::extentsWrite(const uint8_t *inData, const int outFd, const std::vector<Extent> &extents) {
+		int ret = -1;
+		for (const auto &e: extents) {
+			ret = blobWrite(outFd, inData, e.dataOffset, e.dataLength);
+			if (ret) return ret;
+			inData += e.dataLength;
+		}
+		return ret;
+	}
+
+	int FileWriter::directWrite(const int payloadFd, const int outFd, const FileOperation &operation) const {
+		int ret = -1;
+		uint64_t srcDataLength = operation.dataLength;
+		Buffer<uint8_t> srcBuffer{srcDataLength};
+		if (auto *srcData = srcBuffer.get()) {
+			if (httpDownload) {
+				ret = urlRead(srcData, operation);
+			} else {
+				ret = blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
+			}
+			if (!ret) {
+				auto &dst = operation.dstExtents[0];
+				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+			}
+		}
+		return ret;
+	}
+
+	int FileWriter::decompressWrite(Dec::Decompressor auto &&decompress, const int payloadFd, const int outFd,
+	                                const FileOperation &operation) const {
+		int ret = -1;
+		uint64_t srcDataLength = operation.dataLength;
+		Buffer<uint8_t> srcBuffer{srcDataLength};
+		if (auto *srcData = srcBuffer.get()) {
+			if (httpDownload) {
+				ret = urlRead(srcData, operation);
+			} else {
+				ret = blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
+			}
+			if (!ret) {
+				auto &dst = operation.dstExtents[0];
+				uint64_t destLength = dst.dataLength;
+				Buffer<uint8_t> destBuffer{destLength};
+				if (auto *destData = destBuffer.get()) {
+					ret = decompress(srcData, srcDataLength, destData, destLength);
+					if (!ret) {
+						ret = blobWrite(outFd, destData, dst.dataOffset, destLength);
+					}
 				}
 			}
 		}
 		return ret;
 	}
 
-	int FileWriter::directWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
-		int ret = -1;
-		uint8_t *srcData = nullptr;
-		Buffer<uint8_t> srcBuffer;
-		if (httpDownload) {
-			srcBuffer.reserve(operation.dataLength);
-			srcData = srcBuffer.get();
-			urlRead(srcData, operation);
-		} else {
-			srcData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
-		}
-		if (srcData) {
-			auto &dst = operation.dstExtents[0];
-			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
-		}
+	int FileWriter::bzipWrite(const int payloadFd, const int outFd, const FileOperation &operation) const {
+		int ret = decompressWrite(Decompress::bzipDecompress, payloadFd, outFd, operation);
 		return ret;
 	}
 
-	int FileWriter::bzipWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
-		int ret = commonWrite(Decompress::bzipDecompress,
-		                      payloadData, outData, operation);
-		return ret;
-	}
-
-	int FileWriter::zeroWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) {
+	int FileWriter::zeroWrite(int outFd, const FileOperation &operation) {
 		int ret = -1;
-		auto &dst = operation.dstExtents[0];
-		Buffer<uint8_t> srcBuffer{0, dst.dataLength};
+		Buffer<uint8_t> srcBuffer{0, operation.dstTotalLength};
 		if (auto *srcData = srcBuffer.get()) {
-			ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
+			ret = extentsWrite(srcData, outFd, operation.dstExtents);
 		}
 		return ret;
 	}
 
-	int FileWriter::xzWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
-		int ret = commonWrite(Decompress::xzDecompress,
-		                      payloadData, outData, operation);
+	int FileWriter::xzWrite(const int payloadFd, const int outFd, const FileOperation &operation) const {
+		int ret = decompressWrite(Decompress::xzDecompress, payloadFd, outFd, operation);
 		return ret;
 	}
 
-	int FileWriter::zstdWrite(const uint8_t *payloadData, uint8_t *outData, const FileOperation &operation) const {
-		int ret = commonWrite(Decompress::zstdDecompress,
-		                      payloadData, outData, operation);
+	int FileWriter::zstdWrite(const int payloadFd, const int outFd, const FileOperation &operation) const {
+		int ret = decompressWrite(Decompress::zstdDecompress, payloadFd, outFd, operation);
 		return ret;
 	}
 
-	int FileWriter::extentsRead(const uint8_t *inData, uint8_t *data, const std::vector<Extent> &extents) {
+	int FileWriter::sourceCopy(const int payloadFd, const int outFd, const FileOperation &operation) {
 		int ret = -1;
-		for (const auto &e: extents) {
-			ret = memcpy(data, inData + e.dataOffset, e.dataLength) == data ? 0 : -EIO;
-			if (ret) return ret;
-			data += e.dataLength;
-		}
-		return ret;
-	}
-
-	int FileWriter::extentsWrite(uint8_t *outData, const uint8_t *srcData, const std::vector<Extent> &extents) {
-		int ret = -1;
-		for (const auto &e: extents) {
-			ret = memcpy(outData + e.dataOffset, srcData, e.dataLength) ? 0 : -EIO;
-			if (ret) return ret;
-			srcData += e.dataLength;
-		}
-		return ret;
-	}
-
-	int FileWriter::sourceCopy(const uint8_t *inData, uint8_t *outData, const FileOperation &operation) {
-		int ret = -1;
-		auto &dst = operation.dstExtents[0];
 		Buffer<uint8_t> srcBuffer{operation.srcTotalLength};
 		if (auto *srcData = srcBuffer.get()) {
-			ret = extentsRead(inData, srcData, operation.srcExtents);
+			ret = extentsRead(payloadFd, srcData, operation.srcExtents);
 			if (!ret) {
-				ret = memcpy(outData + dst.dataOffset, srcData, dst.dataLength) ? 0 : -EIO;
+				auto &dst = operation.dstExtents[0];
+				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
 			}
 		}
 		return ret;
 	}
 
-	int FileWriter::brotliBSDiff(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
+	int FileWriter::brotliBSDiff(const int payloadFd, const int oldFd, const int outFd,
 	                             const FileOperation &operation) const {
 		int ret = -1;
-		auto &srcs = operation.srcExtents;
-		auto &dsts = operation.dstExtents;
 		uint64_t patchDataLength = operation.dataLength;
-		uint8_t *patchData = nullptr;
-		Buffer<uint8_t> patchBuffer;
-		if (httpDownload) {
-			patchBuffer.reserve(patchDataLength);
-			patchData = patchBuffer.get();
-			urlRead(patchData, operation);
-		} else {
-			patchData = const_cast<uint8_t *>(payloadData + operation.dataOffset);
-		}
-		if (patchData) {
+		Buffer<uint8_t> patchBuffer{patchDataLength};
+		if (auto *patchData = patchBuffer.get()) {
+			if (httpDownload) {
+				ret = urlRead(patchData, operation);
+			} else {
+				ret = blobRead(payloadFd, patchData, operation.dataOffset, patchDataLength);
+			}
 			uint64_t srcTotalLength = operation.srcTotalLength;
-			Buffer<uint8_t> srcBuffer{srcTotalLength};
-			if (auto *srcData = srcBuffer.get()) {
-				ret = extentsRead(inData, srcData, operation.srcExtents);
+			Buffer<uint8_t> oldTmpBuffer{srcTotalLength};
+			if (auto *oldTmpData = oldTmpBuffer.get()) {
+				ret = extentsRead(oldFd, oldTmpData, operation.srcExtents);
 				if (!ret) {
 					std::vector<uint8_t> patchedData;
 					patchedData.reserve(operation.dstTotalLength);
@@ -169,42 +159,40 @@ namespace skkk {
 						patchedData.insert(patchedData.end(), data, data + len);
 						return len;
 					};
-					ret = bsdiff::bspatch(srcData, srcTotalLength,
+					ret = bsdiff::bspatch(oldTmpData, srcTotalLength,
 					                      patchData, patchDataLength, sink);
 					if (!ret) {
-						ret = extentsWrite(outData, patchedData.data(), dsts);
+						ret = extentsWrite(patchedData.data(), outFd, operation.dstExtents);
 					}
 				}
 			}
 		}
-
 		return ret;
 	}
 
-	int FileWriter::writeDataByType(const uint8_t *payloadData, const uint8_t *inData, uint8_t *outData,
-	                                const FileOperation &operation) const {
+	int FileWriter::writeDataByType(const WriteParam &writeParam, const FileOperation &operation) const {
 		int ret = -1;
 		switch (operation.type) {
 			case InstallOperation_Type_REPLACE:
-				ret = directWrite(payloadData, outData, operation);
+				ret = directWrite(writeParam.payloadFd, writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_REPLACE_BZ:
-				ret = bzipWrite(payloadData, outData, operation);
+				ret = bzipWrite(writeParam.payloadFd, writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_SOURCE_COPY:
-				ret = sourceCopy(inData, outData, operation);
+				ret = sourceCopy(writeParam.oldFd, writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_ZERO:
-				ret = zeroWrite(nullptr, outData, operation);
+				ret = zeroWrite(writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_REPLACE_XZ:
-				ret = xzWrite(payloadData, outData, operation);
+				ret = xzWrite(writeParam.payloadFd, writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_BROTLI_BSDIFF:
-				ret = brotliBSDiff(payloadData, inData, outData, operation);
+				ret = brotliBSDiff(writeParam.payloadFd, writeParam.oldFd, writeParam.outFd, operation);
 				break;
 			case InstallOperation_Type_REPLACE_ZSTD:
-				ret = zstdWrite(payloadData, outData, operation);
+				ret = zstdWrite(writeParam.payloadFd, writeParam.outFd, operation);
 				break;
 			default:
 				ret = -1;

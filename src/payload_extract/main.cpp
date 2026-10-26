@@ -144,7 +144,6 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 			case 200:
 				eo.isIncremental = true;
 				if (optarg) {
-					eo.isIncremental = true;
 					eo.setOldDir(optarg);
 				}
 				LOGCD("isIncremental={} oldDir={}", eo.isIncremental, eo.getOldDir());
@@ -313,7 +312,7 @@ int main(const int argc, char *argv[]) {
 
 	if (!eo.getTargetName().empty()) {
 		err = pw->initPartitionsByTarget();
-	} else if (eo.isPrintAll || eo.isExtractAll) {
+	} else if (eo.isPrintAll || eo.isExtractAll || eo.isIncremental) {
 		err = pw->initPartitions();
 	}
 	if (!err) {
@@ -324,7 +323,9 @@ int main(const int argc, char *argv[]) {
 
 	// VerifyWriter
 	vw = pw->getVerifyWriter();
-	vw->initHashTreeLevel();
+	if (eo.isIncremental) {
+		vw->initHashTreeLevel();
+	}
 
 	if (eo.isPrintTarget || eo.isPrintAll) {
 		pw->printPayloadInfo();

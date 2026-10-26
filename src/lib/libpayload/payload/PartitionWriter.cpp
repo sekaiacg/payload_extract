@@ -10,8 +10,7 @@
 #include "payload/FileWriter.h"
 #include "payload/PartitionWriter.h"
 #include "payload/Utils.h"
-#include "payload/common/io.h"
-#include "payload/mman/mmap.hpp"
+#include "files/common/io.h"
 
 namespace skkk {
 	PartitionWriter::PartitionWriter(const std::shared_ptr<PayloadInfo> &payloadInfo)
@@ -92,12 +91,20 @@ namespace skkk {
 		return partitions;
 	}
 
-	std::shared_ptr<VerifyWriter> PartitionWriter::getVerifyWriter() {
+	std::shared_ptr<VerifyWriter> PartitionWriter::getVerifyWriter() const {
 		std::unique_lock lock{_mutex};
 		if (!verifyWriter) {
 			verifyWriter = std::make_shared<VerifyWriter>(partitions, config);
 		}
 		return verifyWriter;
+	}
+
+	std::shared_ptr<FileWriter> PartitionWriter::getFileWriter() const {
+		std::unique_lock lock{_mutex};
+		if (!fileWriter) {
+			fileWriter = std::make_shared<FileWriter>(config.httpDownload);
+		}
+		return fileWriter;
 	}
 
 #define PRINT_PROGRESS_FMT \
@@ -121,50 +128,42 @@ namespace skkk {
 		}
 	}
 
-	static bool handleData(const PartitionInfo &info, bool isIncremental, int &inFd, int &outFd,
-	                       const uint8_t *&inData, uint64_t &inDataSize, uint8_t *&outData, uint64_t &outDataSize) {
-		int ret = -1;
+	static bool handleParamFd(const PartitionInfo &info, bool isIncremental, int &oldFd, int &outFd) {
+		int ret = 0;
 		if (isIncremental) {
-			ret = mapRdByPath(inFd, info.oldFilePath, inData, inDataSize);
-			if (ret) {
+			oldFd = PartitionWriter::initInFd(info.oldFilePath);
+			if (oldFd < 0) {
 				info.initExcInfoByInitFd(info.oldFilePath, ret);
+				ret = oldFd;
 				goto exit;
 			}
 		}
 		outFd = PartitionWriter::initOutFd(info.outFilePath, info.size);
 		if (outFd < 0) {
 			info.initExcInfoByInitFd(info.outFilePath, outFd);
-			ret = outFd;
-			goto exit;
-		}
-		ret = mapRwByPath(outFd, info.outFilePath, outData, outDataSize);
-		if (ret) {
-			info.initExcInfoByInitFd(info.outFilePath, ret);
+			ret = oldFd;
 		}
 	exit:
 		return ret == 0;
 	}
 
 	bool PartitionWriter::extractByInfo(const PartitionInfo &info) const {
-		int ret = -1, inFd = -1, outFd = -1;
-		const auto *payloadBinData = payloadInfo->getPayloadData();
-		FileWriter fw{config.httpDownload};
+		int ret = -1, oldFd = -1, outFd = -1;
+		const auto &extractProgress = info.extractProgress;
 		std::future<void> progressThread;
-		std::shared_ptr<std::atomic_int> extractProgress = info.extractProgress;
-		uint64_t inDataSize = 0;
-		const uint8_t *inData = nullptr;
-		uint64_t outDataSize = 0;
-		uint8_t *outData = nullptr;
+		const auto fw = getFileWriter();
+		std::shared_ptr<WriteParam> writeParam = nullptr;
 
-		if (!handleData(info, config.isIncremental, inFd, outFd,
-		                inData, inDataSize, outData, outDataSize)) {
+		if (!handleParamFd(info, config.isIncremental, oldFd, outFd)) {
 			goto exit;
 		}
 
 		progressThread = std::async(std::launch::async, printProgressMT, config.isSilent, info.name,
 		                            info.size, info.operations.size(), std::ref(*extractProgress), true);
+
+		writeParam = std::make_shared<WriteParam>(payloadInfo->getPayloadFd(), oldFd, outFd);
 		for (const auto &operation: info.operations) {
-			ret = fw.writeDataByType(payloadBinData, inData, outData, operation);
+			ret = fw->writeDataByType(*writeParam, operation);
 			if (ret) {
 				operation.initExcInfo(ret);
 			}
@@ -174,9 +173,7 @@ namespace skkk {
 		info.initExcInfos();
 
 	exit:
-		unmap(inData, inDataSize);
-		unmap(outData, outDataSize);
-		closeFd(inFd);
+		closeFd(oldFd);
 		closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}
@@ -186,11 +183,9 @@ namespace skkk {
 		const auto &fileWriter = ctx.fileWriter;
 		const auto &operation = ctx.operation;
 		const auto &extractProgress = ctx.partitionInfo.extractProgress;
-		const auto *payloadData = ctx.payloadData;
-		const auto *inData = ctx.inData;
-		auto *outData = ctx.outData;
+		const auto &writeParam = ctx.writeParam;
 
-		ret = fileWriter.writeDataByType(payloadData, inData, outData, operation);
+		ret = fileWriter.writeDataByType(writeParam, operation);
 		if (ret) {
 			operation.initExcInfo(ret);
 		}
@@ -198,41 +193,34 @@ namespace skkk {
 	}
 
 	bool PartitionWriter::extractByInfoMT(const PartitionInfo &info) const {
-		int inFd = -1, outFd = -1;
-		const auto payloadData = payloadInfo->getPayloadData();
-		const auto &extractProgress = info.extractProgress;
+		int oldFd = -1, outFd = -1;
 		const auto isIncremental = config.isIncremental;
-		FileWriter fw{config.httpDownload};
-		uint64_t inDataSize = 0;
-		const uint8_t *inData = nullptr;
-		uint64_t outDataSize = 0;
-		uint8_t *outData = nullptr;
+		const auto &extractProgress = info.extractProgress;
+		std::future<void> progressThread;
+		const auto fw = getFileWriter();
+		std::shared_ptr<WriteParam> writeParam = nullptr;
 
-		if (!handleData(info, config.isIncremental, inFd, outFd,
-		                inData, inDataSize, outData, outDataSize)) {
+		if (!handleParamFd(info, config.isIncremental, oldFd, outFd)) {
 			goto exit;
 		}
 
 		// wait
 		{
+			writeParam = std::make_shared<WriteParam>(payloadInfo->getPayloadFd(), oldFd, outFd);
 			uint64_t opSize = info.operations.size();
 			std::vector<PartitionWriteContext> ctxs;
 			ctxs.reserve(opSize);
-			std::threadpool tp(config.threadNum);
+			std::threadpool tp{config.threadNum};
 			for (const auto &operation: info.operations) {
-				auto &ctx = ctxs.emplace_back(info, fw, operation, payloadData,
-				                              inData, outData, isIncremental);
+				auto &ctx = ctxs.emplace_back(info, *fw, operation, *writeParam, isIncremental);
 				tp.commit(extractTask, std::ref(ctx));
 			}
 			printProgressMT(config.isSilent, info.name, info.size, opSize,
 			                *extractProgress, true);
 		}
 		info.initExcInfos();
-
 	exit:
-		unmap(inData, inDataSize);
-		unmap(outData, outDataSize);
-		closeFd(inFd);
+		closeFd(oldFd);
 		closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}

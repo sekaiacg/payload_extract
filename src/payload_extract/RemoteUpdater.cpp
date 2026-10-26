@@ -1,8 +1,7 @@
 #include <memory>
 
-#include <payload/common/io.h>
 #include <payload/LogBase.h>
-#include <payload/mman/mmap.hpp>
+#include "files/mman/mmap.hpp"
 
 #include "RemoteUpdater.h"
 

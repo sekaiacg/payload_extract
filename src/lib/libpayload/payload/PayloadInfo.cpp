@@ -3,7 +3,7 @@
 
 #include "payload/PayloadInfo.h"
 #include "payload/Utils.h"
-#include "payload/mman/mmap.hpp"
+#include "files/common/io.h"
 
 namespace skkk {
 	PayloadInfo::PayloadInfo(const ExtractConfig &config)
@@ -12,7 +12,7 @@ namespace skkk {
 	}
 
 	PayloadInfo::~PayloadInfo() {
-		closePayloadFile();
+		closeFd(payloadFd);
 	}
 
 	const ExtractConfig &PayloadInfo::getConfig() const {
@@ -32,16 +32,21 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::initPayloadFile() {
-		int ret = mapRdByPath(payloadFd, path, fileData, fileDataSize);
-		if (!ret) {
-			if (fileDataSize > 0 && fileData) {
-				return true;
-			}
-			LOGCE("failed to mmap({}).\n", path);
+		payloadFd = openFileRD(path);
+		if (payloadFd < 0) {
+			LOGCE("Failed to open({}).\n", path);
 			return false;
 		}
-		LOGCE("failed to open({}).\n", path);
-		return false;
+		payloadDataSize = getFileSize(path);
+		if (payloadDataSize <= 0) {
+			LOGCE("The payload file cannot be empty.\n");
+			return false;
+		}
+		return true;
+	}
+
+	bool PayloadInfo::getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const {
+		return blobRead(payloadFd, data, pos, len) == 0;
 	}
 
 	bool PayloadInfo::parsePayloadMetadataFile(const std::string &fileContext) {
@@ -65,8 +70,8 @@ namespace skkk {
 						std::getline(ss, offsetStr, ':');
 						std::getline(ss, sizeStr);
 						payloadOffset = std::stoll(offsetStr);
-						payloadMetadataSize = std::stoll(sizeStr);
-						return payloadOffset > 0 && payloadMetadataSize > 0;
+						pHeader.manifestSize = std::stoll(sizeStr);
+						return payloadOffset > 0 && pHeader.manifestSize > 0;
 					}
 				}
 			}
@@ -95,53 +100,61 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::initPayloadOffsetByParseZip() {
-		if (ZipParser zip{fileData, fileDataSize}; zip.parse()) {
+		if (ZipParser zip{payloadFd, payloadDataSize}; zip.parse()) {
 			if (const auto it = std::ranges::find(zip.files, METADATA_FILENAME, &ZipFileItem::name);
 				it != zipFiles.end()) {
-				return initPayloadOffsetByFastParseZip(fileData + it->localHeaderOffset, fileDataSize);
+				Buffer<uint8_t> dataBuffer{HEADER_DATA_SIZE};
+				auto *data = dataBuffer.get();
+				if (blobRead(payloadFd, data, it->localHeaderOffset, HEADER_DATA_SIZE) == 0) {
+					return initPayloadOffsetByFastParseZip(data, payloadDataSize);
+				}
 			}
 		}
 		return false;
 	}
 
 	bool PayloadInfo::handleOffset() {
-		if (fileDataSize >= HEADER_DATA_SIZE) {
+		if (payloadDataSize >= HEADER_DATA_SIZE) {
 			uint8_t data[HEADER_DATA_SIZE] = {};
-			if (memcpy(data, fileData, HEADER_DATA_SIZE) == data) {
-				if (memcmp(fileData, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
+			if (getPayloadData(data, 0, HEADER_DATA_SIZE)) {
+				if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC,
+				           ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
 					if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE)) {
 						return true;
 					}
 					if (initPayloadOffsetByParseZip()) {
 						return true;
 					}
-				} else if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
+				} else if (memcmp(data, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
 					return true;
 				}
 			}
 		}
-		LOGCE("ZIP: payload.bin not found!");
-		return true;
+		LOGCE("ERROR: payload.bin not found!");
+		return false;
 	}
 
 	bool PayloadInfo::parseHeader() {
-		return pHeader.parseHeader(payloadMetadata ? payloadMetadata.get() : fileData + payloadOffset);
+		uint8_t data[kMaxPayloadHeaderSize] = {};
+		if (getPayloadData(data, payloadOffset, kMaxPayloadHeaderSize)) {
+			return pHeader.parseHeader(data);
+		}
+		return false;
 	}
+
 
 	bool PayloadInfo::readManifestData() {
 		auto &inPayloadOffset = pHeader.inPayloadOffset;
+		auto &manifest = pHeader.manifest;
 		const auto manifestSize = pHeader.manifestSize;
-		auto &mf = pHeader.manifest;
-		mf.reserve(manifestSize);
-		const uint8_t *data = payloadMetadata
-			                      ? payloadMetadata.get() + inPayloadOffset
-			                      : fileData + payloadOffset + inPayloadOffset;
-		if (memcpy(mf.get(), data, manifestSize)) {
+		manifest.reserve(manifestSize);
+		if (getPayloadData(manifest.get(), payloadOffset + inPayloadOffset, manifestSize)) {
 			inPayloadOffset += manifestSize;
 			return true;
 		}
 		return false;
 	}
+
 
 	bool PayloadInfo::readMetadataSignatureMessage() {
 		// Skip manifest signature message
@@ -152,7 +165,7 @@ namespace skkk {
 	bool PayloadInfo::readHeaderData() {
 		if (!readManifestData()) goto out;
 
-		if (pHeader.isVersion2()) {
+		if (pHeader.metadataSignatureSize > 0) {
 			if (!readMetadataSignatureMessage()) goto out;
 		}
 		return true;
@@ -168,13 +181,6 @@ namespace skkk {
 		}
 		LOGCE("failed to parse manifest");
 		return false;
-	}
-
-	const uint8_t *PayloadInfo::getPayloadData() const {
-		if (fileData) {
-			return fileData;
-		}
-		return nullptr;
 	}
 
 	bool PayloadInfo::parsePartitionInfo() {
@@ -273,11 +279,5 @@ namespace skkk {
 	out:
 		LOGCE("Failed to initialize payload info");
 		return false;
-	}
-
-	void PayloadInfo::closePayloadFile() {
-		if (!unmap(fileData, fileDataSize)) {
-			closeFd(payloadFd);
-		}
 	}
 }

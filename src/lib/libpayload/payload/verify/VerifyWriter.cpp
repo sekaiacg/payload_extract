@@ -7,8 +7,7 @@
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
 #include "payload/Utils.h"
-#include "payload/common/io.h"
-#include "payload/mman/mmap.hpp"
+#include "files/common/io.h"
 #include "payload/verify/VerifyWriter.h"
 
 #include "ecc.h"
@@ -93,6 +92,7 @@ namespace skkk {
 		const auto hashTreeSalt = info.hashTreeSalt.data();
 		const auto readFilePos = ctx.readFilePos;
 		const auto writeHashPos = ctx.writeHashPos;
+		auto &inFd = ctx.inFd;
 		auto *hashData = ctx.hashData;
 		const auto blockSize = info.blockSize;
 		const auto hashTreeSaltSize = info.hashTreeSalt.size();
@@ -100,9 +100,9 @@ namespace skkk {
 		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
 		auto *sha256Data = origData.data();
 		auto *readData = sha256Data + hashTreeSaltSize;
-
 		memcpy(sha256Data, hashTreeSalt, hashTreeSaltSize);
-		ret = memcpy(readData, ctx.inData + readFilePos, blockSize) == readData ? 0 : -EIO;
+
+		ret = blobRead(inFd, readData, readFilePos, blockSize);
 		if (ret) goto exit;
 		if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
 			ret = -EIO;
@@ -134,8 +134,9 @@ namespace skkk {
 		const uint8_t *inData = nullptr;
 		memcpy(sha256Data, info.hashTreeSalt.data(), hashTreeSaltSize);
 
-		ret = mapRdByPath(inFd, info.outFilePath, inData, inDataSize);
-		if (ret) {
+		inFd = openFileRD(info.outFilePath);
+		if (inFd < 0) {
+			ret = inFd;
 			goto exit;
 		}
 
@@ -148,7 +149,7 @@ namespace skkk {
 			ctxs.reserve(topLevel.blockCount);
 			std::threadpool tp{config.threadNum};
 			while (readPos < info.hashTreeDataExtentSize) {
-				auto &ctx = ctxs.emplace_back(info, inData, readPos,
+				auto &ctx = ctxs.emplace_back(info, inFd, readPos,
 				                              writeHashPos, preHashData);
 				tp.commit(sha256HashTreeTopLevelTask, std::ref(ctx));
 				readPos += blockSize;
@@ -180,8 +181,6 @@ namespace skkk {
 	exit:
 		if (progressThread.valid()) progressThread.wait();
 		if (ret) ++*hashTreeExcSize;
-		unmap(inData, inDataSize);
-		closeFd(inFd);
 		return info.checkCalcHashTreeSuccessful();
 	}
 
@@ -189,7 +188,7 @@ namespace skkk {
 		bool ret = -1;
 		int outFd = openFileRW(info.outFilePath);
 		if (outFd > 0) {
-			const auto &levels = info.hashLevels;
+			auto &levels = info.hashLevels;
 			uint64_t hashPos = info.hashTreeDataOffset;
 			for (const auto &level: levels) {
 				ret = blobWrite(outFd, level.hashData, hashPos,
@@ -199,6 +198,7 @@ namespace skkk {
 				}
 				hashPos += level.totalHashSize;
 			}
+			levels.clear();
 		}
 	exit:
 		closeFd(outFd);
@@ -219,7 +219,7 @@ namespace skkk {
 		const auto fecRsn = info.fecRsn;
 		const auto dataSize = info.fecDataExtentSize;
 		const auto blockSize = info.blockSize;
-		const auto *inData = ctx.inData;
+		auto &inFd = ctx.inFd;
 		const auto roundsIdx = ctx.roundsIdx;
 		const auto rounds = info.fecRounds;
 		const auto dataOffset = info.fecDataExtentOffset;
@@ -237,7 +237,7 @@ namespace skkk {
 			uint64_t offset =
 					fec_ecc_interleave(roundsIdx * fecRsn * blockSize + j, fecRsn, rounds);
 			if (offset < dataSize) {
-				ret = memcpy(buffer, inData + dataOffset + offset, blockSize) == buffer ? 0 : -EIO;
+				ret = blobRead(inFd, buffer, dataOffset + offset, blockSize);
 				if (ret) {
 					++*fecExcSize;
 					goto exit;
@@ -259,7 +259,6 @@ namespace skkk {
 		++*currentProgress;
 	}
 
-
 	bool VerifyWriter::handleFecDataByInfo(const VerifyInfo &info) const {
 		int ret = 0, inFd = -1;
 		const auto fecDataSize = info.fecDataSize;
@@ -270,8 +269,9 @@ namespace skkk {
 		const uint8_t *inData = nullptr;
 		uint64_t inDataSize = 0;
 
-		ret = mapRdByPath(inFd, info.outFilePath, inData, inDataSize);
-		if (ret) {
+		inFd = openFileRD(info.outFilePath);
+		if (inFd < 0) {
+			ret = inFd;
 			goto exit;
 		}
 
@@ -282,7 +282,7 @@ namespace skkk {
 				ctxs.reserve(fecRounds);
 				std::threadpool tp{config.threadNum};
 				for (int i = 0; i < fecRounds; i++) {
-					auto &ctx = ctxs.emplace_back(info, const_cast<uint8_t *>(info.fecData.data()), inData, i);
+					auto &ctx = ctxs.emplace_back(info, inFd, const_cast<uint8_t *>(info.fecData.data()), i);
 					tp.commit(encodeFecTask, std::ref(ctx));
 				}
 				printProgressMT(config.isSilent, info.name, FEC_FMT,
@@ -292,8 +292,6 @@ namespace skkk {
 
 	exit:
 		if (ret) ++*fecExcSize;
-		unmap(inData, inDataSize);
-		closeFd(inFd);
 		return info.checkCalcFecSuccessful();
 	}
 

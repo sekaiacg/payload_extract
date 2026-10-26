@@ -44,11 +44,6 @@ namespace skkk {
 
 		public:
 			int payloadType = PAYLOAD_TYPE_ZIP;
-#if !defined(_WIN32)
-			static constexpr bool isWin = false;
-#else
-			static constexpr bool isWin = true;
-#endif
 			bool isIncremental = false;
 			bool isExcludeMode = false;
 			bool isVerifyUpdate = false;

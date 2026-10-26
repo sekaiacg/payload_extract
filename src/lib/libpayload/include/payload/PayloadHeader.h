@@ -12,8 +12,8 @@ namespace skkk {
 	/**
 	 * payload header size
 	 */
-	static constexpr uint32_t kMaxPayloadHeaderSize = 24;
 	static constexpr char PAYLOAD_MAGIC[] = "CrAU";
+	static constexpr uint32_t kMaxPayloadHeaderSize = 24;
 	static constexpr uint32_t PAYLOAD_MAGIC_SIZE = 4;
 	static constexpr uint32_t PLH_SIZE = 30;
 	static constexpr uint8_t ZIP_LOCAL_FILE_HEADER_MAGIC[4] = {0x50, 0x4B, 0x03, 0x04};
@@ -34,7 +34,6 @@ namespace skkk {
 			uint32_t metadataSignatureSize = 0; // Only present if format_version >= 2:
 			Buffer<uint8_t> manifest; // char manifest[manifest_size];  protobuf
 			Buffer<uint8_t> metadata_signature_message; // char[metadata_signature_size]; protobuf
-
 			uint32_t blockSize = 0; // block_size
 
 			// partition info

@@ -3,7 +3,6 @@
 #include "payload/PayloadInfo.h"
 #include "payload/ZipParser.h"
 #include "payload/common/Buffer.hpp"
-#include "payload/common/io.h"
 
 namespace skkk {
 	UrlPayloadInfo::UrlPayloadInfo(const ExtractConfig &config)
@@ -64,30 +63,43 @@ namespace skkk {
 		return false;
 	}
 
-	bool UrlPayloadInfo::downloadPayloadMetadata(FileBuffer &fb) {
-		payloadMetadata.reserve(payloadMetadataSize);
-		fb.data = payloadMetadata.get();
-		fb.offset = 0;
-		return download(fb, payloadOffset, payloadMetadataSize);
-	}
-
 	bool UrlPayloadInfo::handleOffset() {
-		if (Buffer<uint8_t> buffer{HEADER_DATA_SIZE}) {
-			auto *data = buffer.get();
-			FileBuffer fb{data, 0};
-			if (!download(fb, 0, HEADER_DATA_SIZE)) return false;
-			if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
-				if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE) && downloadPayloadMetadata(fb)) {
-					return true;
-				}
-				if (initPayloadOffsetByParseZip() && downloadPayloadMetadata(fb)) {
-					return true;
-				}
-			} else if (memcmp(fileData, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
+		uint8_t data[HEADER_DATA_SIZE] = {};
+		FileBuffer fb{data, 0};
+		if (!download(fb, 0, HEADER_DATA_SIZE)) return false;
+		if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
+			if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE)) {
 				return true;
 			}
+			if (initPayloadOffsetByParseZip()) {
+				return true;
+			}
+		} else if (memcmp(data, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE) == 0) {
+			return true;
 		}
-		LOGCE("URL: payload.bin not found!");
+		LOGCE("ERROR: payload.bin not found!");
+		return false;
+	}
+
+	bool UrlPayloadInfo::parseHeader() {
+		uint8_t data[kMaxPayloadHeaderSize] = {};
+		FileBuffer fb{data, 0};
+		if (download(fb, payloadOffset, kMaxPayloadHeaderSize)) {
+			return pHeader.parseHeader(data);
+		}
+		return false;
+	}
+
+	bool UrlPayloadInfo::readManifestData() {
+		auto &inPayloadOffset = pHeader.inPayloadOffset;
+		auto &manifest = pHeader.manifest;
+		const auto manifestSize = pHeader.manifestSize;
+		manifest.reserve(manifestSize);
+		FileBuffer fb{manifest.get(), 0};
+		if (download(fb, payloadOffset + inPayloadOffset, manifestSize)) {
+			inPayloadOffset += manifestSize;
+			return true;
+		}
 		return false;
 	}
 }

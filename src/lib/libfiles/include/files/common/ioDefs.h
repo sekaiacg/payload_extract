@@ -1,5 +1,4 @@
-#ifndef PAYLOAD_EXTRACT_IODEFS_H
-#define PAYLOAD_EXTRACT_IODEFS_H
+#pragma once
 
 #include "defs.h"
 
@@ -78,5 +77,3 @@ inline static ssize_t pwrite(int fd, const void *buf, size_t n, off64_t offset) 
 }
 
 #endif
-
-#endif //PAYLOAD_EXTRACT_IODEFS_H

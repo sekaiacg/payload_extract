@@ -1,11 +1,14 @@
 #include "payload/Utils.h"
 #include "payload/ZipParser.h"
-#include "payload/common/io.h"
+#include "files/common/io.h"
 
 namespace skkk {
+	ZipParser::ZipParser(const int inFd, const uint64_t fileSize)
+		: inFd(inFd), fileDataSize(fileSize) {
+	}
+
 	ZipParser::ZipParser(const uint8_t *fileData, uint64_t fileSize)
-		: fileData(fileData),
-		  fileDataSize(fileSize) {
+		: fileData(fileData), fileDataSize(fileSize) {
 	}
 
 	ZipParser::ZipParser(const std::shared_ptr<HttpDownload> &httpDownload)
@@ -17,7 +20,9 @@ namespace skkk {
 			FileBuffer fb{data, 0};
 			return std::get<0>(httpDownload->download(fb, offset, len));
 		}
-		return memcpy(data, fileData + offset, len) == data;
+		return fileData
+			       ? memcpy(data, fileData + offset, len) == data
+			       : blobRead(inFd, data, offset, len) == 0;
 	}
 
 	uint64_t ZipParser::getZipFileSize() const {

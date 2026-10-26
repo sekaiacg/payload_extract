@@ -1,8 +1,10 @@
-#include <brotli/decode.h>
-#include <bsdiff/bspatch.h>
+#include <cerrno>
+
 #include <bzlib.h>
 #include <lzma.h>
 #include <zstd.h>
+#include <brotli/decode.h>
+#include <bsdiff/bspatch.h>
 
 #include "Decompress.h"
 

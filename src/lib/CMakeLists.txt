@@ -75,5 +75,7 @@ if (ENABLE_HTTP_CPR)
     add_subdirectory("cpr")
 endif ()
 
+# libfiles
+add_subdirectory(libfiles)
 # payload
 add_subdirectory(libpayload)

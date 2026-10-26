@@ -25,17 +25,14 @@ namespace skkk {
 			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
-			uint64_t fileDataSize = 0;
-			const uint8_t *fileData = nullptr;
+			uint64_t payloadDataSize = 0;
 			uint64_t payloadOffset = 0;
-			uint64_t payloadMetadataSize = 0;
-			Buffer<uint8_t> payloadMetadata;
 
 		public:
 			std::vector<ZipFileItem> zipFiles;
 			PayloadHeader pHeader;
 			DeltaArchiveManifest manifest;
-			DynamicPartitionMetadata dynamicPartitionMetadata;
+			DynamicPartitionMetadata dynamicPartitionMetadata{};
 			PartitionInfoMap partitionInfoMap;
 
 		public:
@@ -53,6 +50,8 @@ namespace skkk {
 
 			virtual bool initPayloadFile();
 
+			bool getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const;
+
 			bool parsePayloadMetadataFile(const std::string &fileContext);
 
 			bool initPayloadOffsetByFastParseZip(const uint8_t *data, uint64_t dataSize);
@@ -61,30 +60,26 @@ namespace skkk {
 
 			virtual bool handleOffset();
 
-			bool parseHeader();
+			virtual bool parseHeader();
 
 			bool readMetadataSignatureMessage();
 
-			bool readManifestData();
+			virtual bool readManifestData();
 
 			bool readHeaderData();
 
 			bool parseManifestData();
 
-			const uint8_t *getPayloadData() const;
-
 			bool parsePartitionInfo();
 
 			void printInfo();
 
-			virtual bool initPayloadInfo();
-
-			void closePayloadFile();
+			bool initPayloadInfo();
 	};
 
 	class UrlPayloadInfo : public PayloadInfo {
 		public:
-			const std::shared_ptr<HttpDownload> &httpDownload;
+			const std::shared_ptr<HttpDownload> httpDownload;
 
 		public:
 			explicit UrlPayloadInfo(const ExtractConfig &config);
@@ -97,9 +92,11 @@ namespace skkk {
 
 			bool initPayloadOffsetByParseZip() override;
 
-			bool downloadPayloadMetadata(FileBuffer &fb);
-
 			bool handleOffset() override;
+
+			bool parseHeader() override;
+
+			bool readManifestData() override;
 	};
 }
 

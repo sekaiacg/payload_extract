@@ -35,14 +35,6 @@ static std::string bytesToHexString(const uint8_t *bytes, uint32_t len) {
 	return result;
 }
 
-static uint64_t getFileSize(const std::string &dirPath) {
-	struct stat st = {};
-	if (stat(dirPath.c_str(), &st) == 0) {
-		return st.st_size;
-	}
-	return 0;
-}
-
 static bool dirExists(const std::string &path) {
 	struct stat st = {};
 	if (stat(path.c_str(), &st) == 0) {

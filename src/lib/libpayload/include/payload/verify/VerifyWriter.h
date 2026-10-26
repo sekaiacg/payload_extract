@@ -13,15 +13,15 @@ namespace skkk {
 	class VerifyWriterHashTreeContext {
 		public:
 			const VerifyInfo &verifyInfo;
-			const uint8_t *inData;
+			int inFd = -1;
 			uint64_t readFilePos;
 			uint64_t writeHashPos;
 			uint8_t *hashData = nullptr;
 
-			VerifyWriterHashTreeContext(const VerifyInfo &verifyInfo, const uint8_t *inData, uint64_t readFilePos,
+			VerifyWriterHashTreeContext(const VerifyInfo &verifyInfo, const int inFd, uint64_t readFilePos,
 			                            uint64_t writeHashPos, uint8_t *hashData)
 				: verifyInfo(verifyInfo),
-				  inData(inData),
+				  inFd(inFd),
 				  readFilePos(readFilePos),
 				  writeHashPos(writeHashPos),
 				  hashData(hashData) {
@@ -31,15 +31,15 @@ namespace skkk {
 	class VerifyWriterFecContext {
 		public:
 			const VerifyInfo &verifyInfo;
+			int inFd = -1;
 			uint8_t *fecData = nullptr;
-			const uint8_t *inData = nullptr;
 			uint64_t roundsIdx;
 
-			VerifyWriterFecContext(const VerifyInfo &verifyInfo, uint8_t *fecData, const uint8_t *inData,
+			VerifyWriterFecContext(const VerifyInfo &verifyInfo, const int inFd, uint8_t *fecData,
 			                       uint64_t roundsIdx)
 				: verifyInfo(verifyInfo),
+				  inFd(inFd),
 				  fecData(fecData),
-				  inData(inData),
 				  roundsIdx(roundsIdx) {
 			}
 	};

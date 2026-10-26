@@ -2,7 +2,7 @@
 
 #include <payload/LogBase.h>
 #include <payload/Utils.h>
-#include <payload/common/io.h>
+#include <files/common/io.h>
 
 #include "ExtractOperation.h"
 
