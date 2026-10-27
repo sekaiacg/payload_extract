@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26...4.4.2)
+cmake_minimum_required(VERSION 3.31.6)
 include(cmake/check.cmake)
 project(payload_extract LANGUAGES C CXX ASM)
 
