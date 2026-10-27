@@ -1,6 +1,7 @@
 #include "payload/LogBase.h"
 #include "payload/httpDownloadImpl/CprHttpDownload.h"
 #include "payload/httpDownloadImpl/HttpUtils.h"
+#include "payload/Utils.h"
 
 namespace skkk {
 	CprHttpDownload::CprHttpDownload(const std::string &url, bool sslVerification) {

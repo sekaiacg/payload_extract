@@ -2,14 +2,13 @@
 #define PAYLOAD_EXTRACT_MMAP_HPP
 
 #include <cerrno>
-#if !defined(_WIN32)
+#if !defined(_WIN32) || !defined(_WIN64)
 #include <sys/mman.h>
 #else
-#include "mman.h"
+#include "win/mman.h"
 #endif
 
-#include "files/common/io.h"
-#include "payload/Utils.h"
+#include "io.h"
 
 namespace skkk {
 	inline void *mapByFd(int fd, uint64_t size, bool isRDOnly) {
@@ -43,10 +42,10 @@ namespace skkk {
 	int mapByPath(int &fd, const std::string &path, T *&data, uint64_t &dataSize, bool isRDOnly) {
 		int ret = 0;
 		if (fd < 0) {
-			isRDOnly ? fd = openFileRD(path) : fd = openFileRW(path);
+			isRDOnly ? fd = IO::openFileRD(path) : fd = IO::openFileRW(path);
 		}
 		if (fd > 0) {
-			dataSize = getFileSize(path);
+			dataSize = IO::getFileSize(path);
 			data = static_cast<T *>(mapByFd(fd, dataSize, isRDOnly));
 			if (!(dataSize > 0 && data)) {
 				ret = -EIO;

@@ -1,6 +1,7 @@
-#include "payload/Utils.h"
+#include <cstring>
+
+#include "files/io.h"
 #include "payload/ZipParser.h"
-#include "files/common/io.h"
 
 namespace skkk {
 	ZipParser::ZipParser(const int inFd, const uint64_t fileSize)
@@ -22,7 +23,7 @@ namespace skkk {
 		}
 		return fileData
 			       ? memcpy(data, fileData + offset, len) == data
-			       : blobRead(inFd, data, offset, len) == 0;
+			       : IO::blobRead(inFd, data, offset, len) == 0;
 	}
 
 	uint64_t ZipParser::getZipFileSize() const {

@@ -2,15 +2,10 @@
 #define PAYLOAD_EXTRACT_UTILS_H
 
 #include <algorithm>
-#include <cinttypes>
-#include <climits>
-#include <cstring>
-#include <fcntl.h>
+#include <cstdint>
 #include <string>
 #include <string_view>
-#include <unistd.h>
 #include <vector>
-#include <sys/stat.h>
 
 template<typename T>
 constexpr T alignUp(T target, uint32_t size) {
@@ -33,56 +28,6 @@ static std::string bytesToHexString(const uint8_t *bytes, uint32_t len) {
 		result[i * 2 + 1] = charTable[bytes[i] & 0xF];
 	}
 	return result;
-}
-
-static bool dirExists(const std::string &path) {
-	struct stat st = {};
-	if (stat(path.c_str(), &st) == 0) {
-		return S_ISDIR(st.st_mode);
-	}
-	return false;
-}
-
-static bool fileExists(const std::string &filePath) {
-	struct stat st = {};
-
-	if (stat(filePath.data(), &st) == 0) {
-		return !S_ISDIR(st.st_mode);
-	}
-	return false;
-}
-
-static int mkdirs(const char *dirPath, mode_t mode) {
-	int len, err = 0;
-	char str[PATH_MAX + 1] = {};
-	strncpy(str, dirPath, PATH_MAX);
-	len = strlen(str);
-	for (int i = 0; i < len; i++) {
-#ifndef _WIN32
-		if (str[i] == '/' && i > 0) {
-#else
-			if (str[i] == '/' && i > 0 && str[i - 1] != ':') {
-#endif
-			str[i] = '\0';
-			if (access(str, F_OK) != 0) {
-#if defined(_WIN32)
-				err = mkdir(str);
-#else
-				err = mkdir(str, mode);
-#endif
-				if (err) return err;
-			}
-			str[i] = '/';
-		}
-	}
-	if (len > 0 && access(str, F_OK) != 0) {
-#if defined(_WIN32)
-		err = mkdir(str);
-#else
-		err = mkdir(str, mode);
-#endif
-	}
-	return err;
 }
 
 static void strTrim(std::string &str) {

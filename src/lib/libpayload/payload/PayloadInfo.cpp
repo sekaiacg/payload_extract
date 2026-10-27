@@ -1,9 +1,9 @@
 #include <cinttypes>
 #include <string>
 
+#include "files/io.h"
 #include "payload/PayloadInfo.h"
 #include "payload/Utils.h"
-#include "files/common/io.h"
 
 namespace skkk {
 	PayloadInfo::PayloadInfo(const ExtractConfig &config)
@@ -12,7 +12,7 @@ namespace skkk {
 	}
 
 	PayloadInfo::~PayloadInfo() {
-		closeFd(payloadFd);
+		IO::closeFd(payloadFd);
 	}
 
 	const ExtractConfig &PayloadInfo::getConfig() const {
@@ -32,12 +32,12 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::initPayloadFile() {
-		payloadFd = openFileRD(path);
+		payloadFd = IO::openFileRD(path);
 		if (payloadFd < 0) {
 			LOGCE("Failed to open({}).\n", path);
 			return false;
 		}
-		payloadDataSize = getFileSize(path);
+		payloadDataSize = IO::getFileSize(path);
 		if (payloadDataSize <= 0) {
 			LOGCE("The payload file cannot be empty.\n");
 			return false;
@@ -46,7 +46,7 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const {
-		return blobRead(payloadFd, data, pos, len) == 0;
+		return IO::blobRead(payloadFd, data, pos, len) == 0;
 	}
 
 	bool PayloadInfo::parsePayloadMetadataFile(const std::string &fileContext) {
@@ -105,7 +105,7 @@ namespace skkk {
 				it != zipFiles.end()) {
 				Buffer<uint8_t> dataBuffer{HEADER_DATA_SIZE};
 				auto *data = dataBuffer.get();
-				if (blobRead(payloadFd, data, it->localHeaderOffset, HEADER_DATA_SIZE) == 0) {
+				if (IO::blobRead(payloadFd, data, it->localHeaderOffset, HEADER_DATA_SIZE) == 0) {
 					return initPayloadOffsetByFastParseZip(data, payloadDataSize);
 				}
 			}

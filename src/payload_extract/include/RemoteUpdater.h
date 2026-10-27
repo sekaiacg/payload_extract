@@ -14,15 +14,15 @@ namespace skkk {
 	};
 
 	class RemoteUpdater {
-			std::mutex _mutex;
-			int mapFd = -1;
-			RemoteContext *context = nullptr;
-			static constexpr uint32_t contextSize = sizeof(RemoteContext);
-			bool firstStage = false;
-			const ExtractConfig &config;
-			std::string contextFilePath;
-			std::future<void> monitorFuture;
-			std::atomic<bool> monitoring = false;
+		mutable std::mutex _mutex;
+		int mapFd = -1;
+		RemoteContext *context = nullptr;
+		static constexpr uint32_t contextSize = sizeof(RemoteContext);
+		bool firstStage = false;
+		const ExtractConfig &config;
+		std::string contextFilePath;
+		std::future<void> monitorFuture;
+		std::atomic<bool> monitoring = false;
 
 		public:
 			explicit RemoteUpdater(const ExtractConfig &config);
@@ -33,9 +33,9 @@ namespace skkk {
 
 			void notifyRemoteUpdate() const;
 
-			void handleRemoteUpdate();
+			void handleRemoteUpdate() const;
 
-			void monitor();
+			void monitor() const;
 
 			void startMonitor();
 	};

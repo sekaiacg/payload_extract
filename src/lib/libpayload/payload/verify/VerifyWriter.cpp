@@ -1,13 +1,13 @@
+#include <algorithm>
 #include <cinttypes>
 #include <print>
 #include <ranges>
 
 #include "common/LogProgress.h"
 #include "common/threadpool.h"
+#include "files/io.h"
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
-#include "payload/Utils.h"
-#include "files/common/io.h"
 #include "payload/verify/VerifyWriter.h"
 
 #include "ecc.h"
@@ -102,7 +102,7 @@ namespace skkk {
 		auto *readData = sha256Data + hashTreeSaltSize;
 		memcpy(sha256Data, hashTreeSalt, hashTreeSaltSize);
 
-		ret = blobRead(inFd, readData, readFilePos, blockSize);
+		ret = IO::blobRead(inFd, readData, readFilePos, blockSize);
 		if (ret) goto exit;
 		if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
 			ret = -EIO;
@@ -134,7 +134,7 @@ namespace skkk {
 		const uint8_t *inData = nullptr;
 		memcpy(sha256Data, info.hashTreeSalt.data(), hashTreeSaltSize);
 
-		inFd = openFileRD(info.outFilePath);
+		inFd = IO::openFileRD(info.outFilePath);
 		if (inFd < 0) {
 			ret = inFd;
 			goto exit;
@@ -186,13 +186,12 @@ namespace skkk {
 
 	bool VerifyWriter::updateHashTreeByInfo(const VerifyInfo &info) {
 		bool ret = -1;
-		int outFd = openFileRW(info.outFilePath);
+		int outFd = IO::openFileRW(info.outFilePath);
 		if (outFd > 0) {
 			auto &levels = info.hashLevels;
 			uint64_t hashPos = info.hashTreeDataOffset;
 			for (const auto &level: levels) {
-				ret = blobWrite(outFd, level.hashData, hashPos,
-				                level.totalHashSize);
+				ret = IO::blobWrite(outFd, level.hashData, hashPos, level.totalHashSize);
 				if (ret) {
 					goto exit;
 				}
@@ -201,7 +200,7 @@ namespace skkk {
 			levels.clear();
 		}
 	exit:
-		closeFd(outFd);
+		IO::closeFd(outFd);
 		return !ret;
 	}
 
@@ -237,7 +236,7 @@ namespace skkk {
 			uint64_t offset =
 					fec_ecc_interleave(roundsIdx * fecRsn * blockSize + j, fecRsn, rounds);
 			if (offset < dataSize) {
-				ret = blobRead(inFd, buffer, dataOffset + offset, blockSize);
+				ret = IO::blobRead(inFd, buffer, dataOffset + offset, blockSize);
 				if (ret) {
 					++*fecExcSize;
 					goto exit;
@@ -269,7 +268,7 @@ namespace skkk {
 		const uint8_t *inData = nullptr;
 		uint64_t inDataSize = 0;
 
-		inFd = openFileRD(info.outFilePath);
+		inFd = IO::openFileRD(info.outFilePath);
 		if (inFd < 0) {
 			ret = inFd;
 			goto exit;
@@ -297,14 +296,14 @@ namespace skkk {
 
 	bool VerifyWriter::updateFecByInfo(const VerifyInfo &info) {
 		int ret = -1, outFd = -1;
-		outFd = openFileRW(info.outFilePath);
+		outFd = IO::openFileRW(info.outFilePath);
 		if (outFd < 0) {
 			goto exit;
 		}
-		ret = blobWrite(outFd, info.fecData.data(), info.fecDataOffset, info.fecDataSize);
+		ret = IO::blobWrite(outFd, info.fecData.data(), info.fecDataOffset, info.fecDataSize);
 
 	exit:
-		closeFd(outFd);
+		IO::closeFd(outFd);
 		return !ret;
 	}
 

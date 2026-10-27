@@ -2,6 +2,7 @@
 #include <format>
 #include <print>
 
+#include "files/io.h"
 #include "payload/PartitionInfo.h"
 #include "payload/Utils.h"
 
@@ -57,11 +58,11 @@ namespace skkk {
 
 	void PartitionInfo::ifExcExistsWrite2File() const {
 		if (!isExtractionSuccessful) {
-			if (auto *file = fopen(outErrorPath.c_str(), "wb")) {
+			if (auto *file = IO::fopenFileRW(outErrorPath)) {
 				for (const auto &info: excInfos) {
 					fprintf(file, "%s\n", info.c_str());
 				}
-				fclose(file);
+				IO::fclose(file);
 			}
 		}
 	}

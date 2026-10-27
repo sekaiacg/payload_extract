@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <io.h>
 
-#include "files/mman/mman.h"
+#include "files/win/mman.h"
 
 #ifndef FILE_MAP_EXECUTE
 #define FILE_MAP_EXECUTE    0x0020

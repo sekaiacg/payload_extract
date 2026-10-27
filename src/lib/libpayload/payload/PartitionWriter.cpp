@@ -7,10 +7,9 @@
 
 #include "common/LogProgress.h"
 #include "common/threadpool.h"
+#include "files/io.h"
 #include "payload/FileWriter.h"
 #include "payload/PartitionWriter.h"
-#include "payload/Utils.h"
-#include "files/common/io.h"
 
 namespace skkk {
 	PartitionWriter::PartitionWriter(const std::shared_ptr<PayloadInfo> &payloadInfo)
@@ -54,8 +53,8 @@ namespace skkk {
 
 	bool PartitionWriter::createOutDir() const {
 		auto &outDir = payloadInfo->getConfig().getOldDir();
-		if (!dirExists(outDir)) {
-			if (mkdirs(outDir.c_str(), 0755)) {
+		if (!IO::dirExists(outDir)) {
+			if (IO::mkdirs(outDir.c_str(), 0755)) {
 				LOGCE("create out dir fail: '{}'({})", outDir, strerror(errno));
 				return false;
 			}
@@ -64,23 +63,25 @@ namespace skkk {
 	}
 
 	int PartitionWriter::createOutFile(const std::string &path, uint64_t fileSize) {
-		int fd = open(path.c_str(),
-		              O_CREAT | O_RDWR | O_TRUNC | O_BINARY, 0644);
+		int fd = IO::createFile(path);
 		if (fd > 0) {
-			if (!payload_ftruncate(fd, fileSize)) return fd;
+			if (const int ret = IO::blobFtruncate(fd, fileSize)) {
+				IO::closeFd(fd);
+				return ret;
+			}
 		}
-		return fd > 0 ? fd : -errno;
+		return fd;
 	}
 
 	int PartitionWriter::initInFd(const std::string &path) {
-		int inFd = openFileRD(path);
+		int inFd = IO::openFileRD(path);
 		return inFd;
 	}
 
 	int PartitionWriter::initOutFd(const std::string &path, uint64_t fileSize, bool isReOpen) {
 		int outFd = -1;
-		if (isReOpen && fileExists(path)) {
-			outFd = openFileRW(path);
+		if (isReOpen && IO::fileExists(path)) {
+			outFd = IO::openFileRW(path);
 		} else {
 			outFd = createOutFile(path, fileSize);
 		}
@@ -173,8 +174,8 @@ namespace skkk {
 		info.initExcInfos();
 
 	exit:
-		closeFd(oldFd);
-		closeFd(outFd);
+		IO::closeFd(oldFd);
+		IO::closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}
 
@@ -220,8 +221,8 @@ namespace skkk {
 		}
 		info.initExcInfos();
 	exit:
-		closeFd(oldFd);
-		closeFd(outFd);
+		IO::closeFd(oldFd);
+		IO::closeFd(outFd);
 		return info.checkExtractionSuccessful();
 	}
 

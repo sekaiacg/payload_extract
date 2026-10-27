@@ -4,11 +4,11 @@
 #include <string>
 #include <sys/time.h>
 
+#include <files/io.h>
 #include <payload/ExtractConfig.h>
 #include <payload/LogBase.h>
 #include <payload/PartitionWriter.h>
 #include <payload/PayloadParser.h>
-#include <payload/Utils.h>
 #include <payload/verify/VerifyWriter.h>
 
 #include "ExtractOperation.h"
@@ -183,7 +183,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 		LOGCD("httpDownload={}", eo.httpDownload != nullptr);
 
 		if (eo.payloadType != PAYLOAD_TYPE_URL) {
-			if (!fileExists(eo.getPayloadPath())) {
+			if (!IO::fileExists(eo.getPayloadPath())) {
 				LOGCE("payload file '{}' does not exist", eo.getPayloadPath().c_str());
 				ret = RET_EXTRACT_OPEN_FILE;
 				goto exit;

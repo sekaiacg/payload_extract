@@ -1,7 +1,8 @@
-#include <memory>
+#include <unistd.h>
 
+#include <files/io.h>
+#include <files/mmap.hpp>
 #include <payload/LogBase.h>
-#include "files/mman/mmap.hpp"
 
 #include "RemoteUpdater.h"
 
@@ -13,11 +14,12 @@ namespace skkk {
 
 	RemoteUpdater::~RemoteUpdater() {
 		monitoring = false;
+		std::lock_guard lock{_mutex};
 		if (context) {
 			munmap(context, contextSize);
 		}
-		closeFd(mapFd);
-		if (firstStage && fileExists(contextFilePath)) {
+		IO::closeFd(mapFd);
+		if (firstStage && IO::fileExists(contextFilePath)) {
 			remove(contextFilePath.c_str());
 		}
 	}
@@ -30,16 +32,12 @@ namespace skkk {
 
 	bool RemoteUpdater::initRemoteUpdate(bool firstStage) {
 		uint64_t size = contextSize;
-		int flag = O_RDWR | O_BINARY;
 		this->firstStage = firstStage;
-
-		if (firstStage) flag |= O_CREAT | O_TRUNC;
-		mapFd = open(contextFilePath.c_str(), flag, 0644);
+		mapFd = IO::createFile(contextFilePath, firstStage);
 		if (mapFd > 0) {
-			if (!payload_ftruncate(mapFd, contextSize)) {
+			if (!IO::blobFtruncate(mapFd, size)) {
 				return mapByPath(mapFd, contextFilePath, context, size, false) == 0;
 			}
-			close(mapFd);
 		}
 		printRemoteResult("Failed to initialize!", false);
 		return false;
@@ -55,23 +53,24 @@ namespace skkk {
 		}
 	}
 
-	void RemoteUpdater::handleRemoteUpdate() {
-		std::lock_guard lock{_mutex};
-		if (context->startUpdate) {
+	void RemoteUpdater::handleRemoteUpdate() const {
+		if (context && context->startUpdate) {
 			printRemoteResult(context->url, true);
 			context->startUpdate = false;
 			config.httpDownload->setUrl(context->url);
 		}
 	}
 
-	void RemoteUpdater::monitor() {
+	void RemoteUpdater::monitor() const {
 		while (monitoring) {
+			std::lock_guard lock{_mutex};
 			handleRemoteUpdate();
 			sleep(1);
 		}
 	}
 
 	void RemoteUpdater::startMonitor() {
+		std::lock_guard lock{_mutex};
 		if (!monitoring && context) {
 			monitoring = true;
 			monitorFuture = std::async(std::launch::async, &RemoteUpdater::monitor, std::ref(*this));

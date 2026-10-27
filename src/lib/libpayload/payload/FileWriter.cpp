@@ -3,11 +3,10 @@
 #include <bsdiff/bspatch.h>
 
 #include "decompress/Decompress.h"
+#include "files/io.h"
 #include "payload/FileWriter.h"
 #include "payload/HttpDownload.h"
 #include "payload/update_metadata.pb.h"
-#include "payload/Utils.h"
-#include "files/common/io.h"
 #include "payload/common/Buffer.hpp"
 
 namespace skkk {
@@ -39,7 +38,7 @@ namespace skkk {
 	int FileWriter::extentsRead(const int inFd, uint8_t *outData, const std::vector<Extent> &extents) {
 		int ret = -1;
 		for (const auto &e: extents) {
-			ret = blobRead(inFd, outData, e.dataOffset, e.dataLength);
+			ret = IO::blobRead(inFd, outData, e.dataOffset, e.dataLength);
 			if (ret) return ret;
 			outData += e.dataLength;
 		}
@@ -49,7 +48,7 @@ namespace skkk {
 	int FileWriter::extentsWrite(const uint8_t *inData, const int outFd, const std::vector<Extent> &extents) {
 		int ret = -1;
 		for (const auto &e: extents) {
-			ret = blobWrite(outFd, inData, e.dataOffset, e.dataLength);
+			ret = IO::blobWrite(outFd, inData, e.dataOffset, e.dataLength);
 			if (ret) return ret;
 			inData += e.dataLength;
 		}
@@ -64,11 +63,11 @@ namespace skkk {
 			if (httpDownload) {
 				ret = urlRead(srcData, operation);
 			} else {
-				ret = blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
+				ret = IO::blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
 			}
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
-				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+				ret = IO::blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
 			}
 		}
 		return ret;
@@ -83,7 +82,7 @@ namespace skkk {
 			if (httpDownload) {
 				ret = urlRead(srcData, operation);
 			} else {
-				ret = blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
+				ret = IO::blobRead(payloadFd, srcData, operation.dataOffset, srcDataLength);
 			}
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
@@ -92,7 +91,7 @@ namespace skkk {
 				if (auto *destData = destBuffer.get()) {
 					ret = decompress(srcData, srcDataLength, destData, destLength);
 					if (!ret) {
-						ret = blobWrite(outFd, destData, dst.dataOffset, destLength);
+						ret = IO::blobWrite(outFd, destData, dst.dataOffset, destLength);
 					}
 				}
 			}
@@ -131,7 +130,7 @@ namespace skkk {
 			ret = extentsRead(payloadFd, srcData, operation.srcExtents);
 			if (!ret) {
 				auto &dst = operation.dstExtents[0];
-				ret = blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
+				ret = IO::blobWrite(outFd, srcData, dst.dataOffset, dst.dataLength);
 			}
 		}
 		return ret;
@@ -146,7 +145,7 @@ namespace skkk {
 			if (httpDownload) {
 				ret = urlRead(patchData, operation);
 			} else {
-				ret = blobRead(payloadFd, patchData, operation.dataOffset, patchDataLength);
+				ret = IO::blobRead(payloadFd, patchData, operation.dataOffset, patchDataLength);
 			}
 			uint64_t srcTotalLength = operation.srcTotalLength;
 			Buffer<uint8_t> oldTmpBuffer{srcTotalLength};

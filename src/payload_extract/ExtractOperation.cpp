@@ -1,14 +1,14 @@
 #include <cerrno>
 
+#include <files/io.h>
 #include <payload/LogBase.h>
 #include <payload/Utils.h>
-#include <files/common/io.h>
 
 #include "ExtractOperation.h"
 
 namespace skkk {
 	int ExtractOperation::initOldDir() const {
-		if (!dirExists(oldDir)) {
+		if (!IO::dirExists(oldDir)) {
 			LOGCE("oldDir does not exist: {}", oldDir);
 			return RET_EXTRACT_INIT_FAIL;
 		}
@@ -35,12 +35,12 @@ namespace skkk {
 	}
 
 	int ExtractOperation::initOutConfig() {
-		if (!fileExists(outConfigPath)) {
+		if (!IO::fileExists(outConfigPath)) {
 			LOGCE("outConfigPath does not exist: {}", outConfigPath);
 			return RET_EXTRACT_INIT_FAIL;
 		}
 		std::vector<std::string> lines;
-		if (readAllLines(outConfigPath, lines)) {
+		if (IO::readAllLines(outConfigPath, lines)) {
 			std::vector<std::string> split;
 			for (const auto &line: lines) {
 				splitString(split, line, ":", true);
@@ -72,8 +72,8 @@ namespace skkk {
 
 	int ExtractOperation::createExtractOutDir() const {
 		int rc = RET_EXTRACT_DONE;
-		if (!dirExists(outDir)) {
-			if (mkdirs(outDir.c_str(), 0755)) {
+		if (!IO::dirExists(outDir)) {
+			if (IO::mkdirs(outDir, 0755)) {
 				rc = RET_EXTRACT_CREATE_DIR_FAIL;
 				LOGCE("create out dir fail: '{}'({})", outDir, strerror(errno));
 			}
