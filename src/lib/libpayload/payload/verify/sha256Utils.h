@@ -8,7 +8,7 @@
 #if defined(LIB_USE_MBEDTLS)
 #include <mbedtls/sha256.h>
 #define USE_MBEDTLS
-#elif !defined(LIB_USE_OPENSSL)
+#elif defined(LIB_USE_OPENSSL)
 #include <openssl/evp.h>
 #define USE_OPENSSL
 #else
