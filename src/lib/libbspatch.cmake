@@ -29,7 +29,7 @@ list(TRANSFORM BSPATCH_SRCS PREPEND "${TARGET_SRC_DIR}/")
 
 execute_process(COMMAND readlink -f "${TARGET_SRC_DIR}/file.cc" OUTPUT_VARIABLE PATH_TARGET_FILE)
 string(REGEX REPLACE "\n$" "" PATH_TARGET_FILE "${PATH_TARGET_FILE}")
-execute_process(COMMAND patch -N -f -s --no-backup-if-mismatch -r "/dev/null"
+execute_process(COMMAND patch -N -s --no-backup-if-mismatch -r "/dev/null"
     "${PATH_TARGET_FILE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/patch/libbspatch_file.cc.patch"
 )
