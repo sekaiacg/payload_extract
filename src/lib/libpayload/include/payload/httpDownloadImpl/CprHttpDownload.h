@@ -11,8 +11,6 @@ using namespace std::chrono_literals;
 namespace skkk {
 	class CprHttpDownload : public HttpDownload {
 		public:
-			static inline std::string CA_BUNDLE;
-			static inline std::string CA_PATH;
 			cpr::ConnectionPool connectionPool{};
 			cpr::ConnectTimeout connectTimeout{5s};
 			cpr::LowSpeed lowSpeed{1024 * 10, 5s};
@@ -21,8 +19,6 @@ namespace skkk {
 
 		public:
 			CprHttpDownload(const std::string &url, bool sslVerification);
-
-			static void initCA();
 
 			void initSession(cpr::Session &session) const;
 

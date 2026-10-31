@@ -1,0 +1,965 @@
+--- CMakeLists.txt	2026-10-31 18:11:14.574430515 +0800
++++ CMakeLists1.txt	2026-10-31 18:13:03.891185762 +0800
+@@ -21,6 +21,13 @@
+
+ cmake_minimum_required(VERSION 3.16)
+
++# Preserve normal variables set by parent projects before add_subdirectory().
++# Without CMP0126, declaring the matching cache options below removes values
++# such as WOLFSSL_SP, WOLFSSL_SP_MATH, and WOLFSSL_INTEL_ASM from this scope.
++if(POLICY CMP0126)
++    cmake_policy(SET CMP0126 NEW)
++endif()
++
+ if(${CMAKE_VERSION} VERSION_LESS "3.22")
+     message(STATUS "This project recommends using CMake version 3.22 or higher. You are using ${CMAKE_VERSION}.")
+ else()
+@@ -2747,14 +2754,14 @@
+     list(APPEND WOLFSSL_DEFINITIONS "-DNO_INLINE")
+ endif()
+
++# configure.ac expresses inline ARM assembly as the "inline" token of
++# --enable-armasm. This standalone option is kept for CMake compatibility and
++# is combined with that token in the ARM assembly block below, so the macro is
++# only emitted once the effective choice is known.
+ add_option("WOLFSSL_ARMASM_INLINE"
+-    "Enable ARM assembly inline functions (default: disabled)"
++    "Use C inline ARM assembly instead of standalone .S sources (default: disabled)"
+     "no" "yes;no")
+
+-if (WOLFSSL_ARMASM_INLINE)
+-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
+-endif()
+-
+ # TODO:
+ #       - CRL monitor
+ #       - User crypto
+@@ -3139,11 +3146,46 @@
+     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AARCH64_BUILD")
+ endif()
+
++# Single Precision math. WOLFSSL_SP accepts the same comma-separated tokens as
++# configure.ac, so it must remain a raw STRING rather than an add_option()
++# boolean.
++set(WOLFSSL_SP "" CACHE STRING
++    "Enable Single Precision math with optional comma-separated settings")
++set_property(CACHE WOLFSSL_SP PROPERTY STRINGS
++    "no;yes;small;smallfast;smallstack;nomalloc;nonblock;transposedtable;notransposedtable;asm;noasm;256;384;521;1024;2048;3072;4096;sm2")
++
+ # SP math all
+ add_option("WOLFSSL_SP_MATH_ALL"
+     "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
+     "yes" "yes;no")
+
++# Kernel mode defaults change the default math backend and disable the
++# architecture SP assembly default. Declare this before those decisions so a
++# command-line -DWOLFSSL_LINUXKM_DEFAULTS=yes is visible while SP is configured.
++add_option("WOLFSSL_LINUXKM_DEFAULTS"
++    "Enable default settings appropriate for kernel modules (default: disabled)"
++    "no" "yes;no")
++if(WOLFSSL_LINUXKM_DEFAULTS)
++    list(APPEND WOLFSSL_DEFINITIONS
++        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
++        )
++endif()
++set(_wolfssl_kernel_mode_defaults OFF)
++if(WOLFSSL_LINUX_KM OR WOLFSSL_LINUXKM_DEFAULTS)
++    set(_wolfssl_kernel_mode_defaults ON)
++endif()
++
++# SP math (restricted algorithm suite)
++add_option("WOLFSSL_SP_MATH"
++    "Enable Single Precision math implementation with restricted algorithm suite (default: disabled)"
++    "no" "yes;no")
++
++# add_option() keeps the Autotools yes/no vocabulary in the cache. CMake's
++# if() maps yes/no onto ON/OFF, so every enablement test below reads the
++# option directly as a boolean; only the cache keeps the yes/no spelling.
++wolfssl_option_user_set(WOLFSSL_SP_MATH _wolfssl_sp_math_user_set)
++wolfssl_option_user_set(WOLFSSL_SP_MATH_ALL _wolfssl_sp_math_all_user_set)
++
+ # SP base point table layout.  The default table is byte transposed: the
+ # lookup reads one byte per block rather than scanning every entry, which is
+ # faster but makes the load address depend on the secret index within a cache
+@@ -3152,9 +3194,6 @@
+ add_option("WOLFSSL_SP_NO_TRANSPOSED_TABLE"
+     "Disable the transposed Single Precision base point table (default: disabled)"
+     "no" "yes;no")
+-if(WOLFSSL_SP_NO_TRANSPOSED_TABLE)
+-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_TRANSPOSED_TABLE")
+-endif()
+
+ # Enable examples, used to disable examples
+ if(WOLFSSL_LINUX_KM)
+@@ -3649,15 +3688,6 @@
+         )
+ endif()
+
+-add_option("WOLFSSL_LINUXKM_DEFAULTS"
+-    "Enable default settings appropriate for kernel modules (default: disabled)"
+-    "no" "yes;no")
+-if(WOLFSSL_LINUXKM_DEFAULTS)
+-    list(APPEND WOLFSSL_DEFINITIONS
+-        "-DWOLFSSL_KERNEL_MODE_DEFAULTS"
+-        )
+-endif()
+-
+ add_option("WOLFSSL_LINUXKM_PIE"
+     "Alias for kernel relocation tables, requires Linux kernel module build (default: disabled)"
+     "no" "yes;no")
+@@ -4642,6 +4672,12 @@
+ # Assembly acceleration options (parity with configure.ac)
+ ####################################################
+
++# Intel assembly acceleration. The compile definitions and source selection
++# are resolved after every algorithm option is known.
++add_option("WOLFSSL_INTEL_ASM"
++    "Enable all Intel assembly speedups (default: disabled)"
++    "no" "yes;no")
++
+ # RISC-V assembly
+ add_option("WOLFSSL_RISCV_ASM" "Enable RISC-V assembly acceleration (default: disabled)" "no" "yes;no")
+ if(WOLFSSL_RISCV_ASM AND WOLFSSL_ASM)
+@@ -4660,6 +4696,793 @@
+     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PPC64_ASM")
+ endif()
+
++# When global assembly is disabled, configure.ac warns but still selects the
++# Intel assembly sources. Only the Intel compile definitions are suppressed.
++set(_wolfssl_intel_asm_effective OFF)
++if(WOLFSSL_INTEL_ASM)
++    if(WOLFSSL_ASM)
++        list(APPEND WOLFSSL_DEFINITIONS
++            "-DWOLFSSL_AESNI"
++            "-DUSE_INTEL_SPEEDUP"
++            "-DUSE_INTEL_SPEEDUP_FOR_AES"
++        )
++        set(WOLFSSL_AESNI ON)
++        set(WOLFSSL_AESNI_WITH_AVX ON)
++        set(_wolfssl_intel_asm_effective ON)
++    else()
++        message(WARNING "Conflicting asm settings: WOLFSSL_INTEL_ASM ignored because WOLFSSL_ASM=no.")
++    endif()
++endif()
++
++# WOLFSSL_SP is a comma separated token list, not a boolean, so if() cannot
++# test it directly. Reduce "was SP explicitly disabled?" to an ON/OFF flag
++# once, the way configure.ac tests `"$ENABLED_SP" != "no"` before it parses
++# the tokens. Every later enablement test uses this boolean.
++set(_wolfssl_sp_not_disabled ON)
++if("${WOLFSSL_SP}" STREQUAL "no")
++    set(_wolfssl_sp_not_disabled OFF)
++endif()
++
++# A user explicitly selecting restricted SP math disables the unrestricted
++# default unless they also selected WOLFSSL_SP_MATH_ALL themselves.
++if(WOLFSSL_SP_MATH)
++    if(WOLFSSL_SP_MATH_ALL)
++        if(_wolfssl_sp_math_all_user_set)
++            message(FATAL_ERROR
++                "WOLFSSL_SP_MATH=yes and WOLFSSL_SP_MATH_ALL=yes are incompatible.")
++        endif()
++        override_cache(WOLFSSL_SP_MATH_ALL "no")
++    endif()
++elseif(WOLFSSL_FAST_MATH AND WOLFSSL_SP_MATH_ALL AND
++       NOT _wolfssl_sp_math_all_user_set)
++    # Match configure.ac: explicit fast math changes the default SP math backend
++    # from SP math all to the selected fast-math backend.
++    override_cache(WOLFSSL_SP_MATH_ALL "no")
++endif()
++
++# In kernel mode, restricted SP math defaults on when SP is not explicitly
++# disabled and the unrestricted SP math backend is off.
++if(NOT _wolfssl_sp_math_user_set AND _wolfssl_kernel_mode_defaults AND
++   _wolfssl_sp_not_disabled AND NOT WOLFSSL_SP_MATH_ALL)
++    override_cache(WOLFSSL_SP_MATH "yes")
++endif()
++
++set(_wolfssl_sp_rsa OFF)
++set(_wolfssl_sp_dh OFF)
++set(_wolfssl_sp_ff_2048 OFF)
++set(_wolfssl_sp_ff_3072 OFF)
++set(_wolfssl_sp_ff_4096 OFF)
++set(_wolfssl_sp_ecc OFF)
++set(_wolfssl_sp_ec_256 OFF)
++set(_wolfssl_sp_ec_384 OFF)
++set(_wolfssl_sp_ec_521 OFF)
++set(_wolfssl_sp_ec_1024 OFF)
++set(_wolfssl_sp_sm2 OFF)
++if(WOLFSSL_SM2)
++    set(_wolfssl_sp_sm2 ON)
++endif()
++set(_wolfssl_sp_small OFF)
++set(_wolfssl_sp_small_stack OFF)
++set(_wolfssl_sp_no_malloc OFF)
++set(_wolfssl_sp_nonblock OFF)
++set(_wolfssl_sp_no_transposed_table OFF)
++if(WOLFSSL_SP_NO_TRANSPOSED_TABLE)
++    set(_wolfssl_sp_no_transposed_table ON)
++endif()
++set(_wolfssl_sp_asm_request_set OFF)
++set(_wolfssl_sp_asm_requested OFF)
++set(_wolfssl_sp_request "${WOLFSSL_SP}")
++
++if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64)$")
++    set(_wolfssl_sp_64bit_cpu ON)
++else()
++    set(_wolfssl_sp_64bit_cpu OFF)
++endif()
++
++# configure.ac defaults SP assembly on for restricted SP math on supported
++# 64-bit hosts. If SP was not specified at all, it then promotes the empty
++# SP setting to "yes" so RSA, DH, and ECC all get their SP implementations.
++set(_wolfssl_sp_asm_default OFF)
++if(WOLFSSL_SP_MATH AND NOT _wolfssl_kernel_mode_defaults AND
++   _wolfssl_sp_64bit_cpu)
++    set(_wolfssl_sp_asm_default ON)
++endif()
++if("${_wolfssl_sp_request}" STREQUAL "" AND _wolfssl_sp_asm_default)
++    set(_wolfssl_sp_request "yes")
++endif()
++
++set(_wolfssl_sp_sakke_1024 OFF)
++if(WOLFSSL_SAKKE)
++    set(_wolfssl_sp_sakke_1024 ON)
++endif()
++
++string(REPLACE "," ";" _wolfssl_sp_tokens "${_wolfssl_sp_request}")
++foreach(_wolfssl_sp_token IN LISTS _wolfssl_sp_tokens)
++    if("${_wolfssl_sp_token}" STREQUAL "")
++        continue()
++    endif()
++
++    if("${_wolfssl_sp_token}" STREQUAL "small" OR
++       "${_wolfssl_sp_token}" STREQUAL "smallfast")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_2048 ON)
++        set(_wolfssl_sp_ff_3072 ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_256 ON)
++        if(_wolfssl_sp_64bit_cpu)
++            set(_wolfssl_sp_ff_4096 ON)
++            set(_wolfssl_sp_ec_384 ON)
++            set(_wolfssl_sp_ec_521 ON)
++        endif()
++        if("${_wolfssl_sp_token}" STREQUAL "smallfast")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_FAST_MODEXP")
++        endif()
++    elseif("${_wolfssl_sp_token}" STREQUAL "yes")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_2048 ON)
++        set(_wolfssl_sp_ff_3072 ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_256 ON)
++        if(_wolfssl_sp_64bit_cpu)
++            set(_wolfssl_sp_ff_4096 ON)
++            set(_wolfssl_sp_ec_384 ON)
++            set(_wolfssl_sp_ec_521 ON)
++        endif()
++    elseif("${_wolfssl_sp_token}" STREQUAL "no")
++        # Matches configure.ac: "no" is accepted but does not clear earlier
++        # tokens.
++    elseif("${_wolfssl_sp_token}" MATCHES "^(smallec256|smallp256|small256)$")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_256 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(ec256|p256|256)$")
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_256 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(smallec384|smallp384|small384)$")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_384 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(ec384|p384|384)$")
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_384 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(smallec521|smallp521|small521)$")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_521 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(ec521|p521|521)$")
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_ec_521 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(smallec1024|smallp1024|small1024)$")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_sakke_1024 ON)
++    elseif("${_wolfssl_sp_token}" MATCHES "^(ec1024|p1024|1024)$")
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_sakke_1024 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "smallsm2")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_sm2 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "sm2")
++        set(_wolfssl_sp_ecc ON)
++        set(_wolfssl_sp_sm2 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "small2048")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_2048 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "2048")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_2048 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "smallrsa2048")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_2048 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "rsa2048")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_2048 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "small3072")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_3072 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "3072")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_3072 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "smallrsa3072")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_3072 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "rsa3072")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_3072 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "small4096")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_4096 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "4096" OR
++        "${_wolfssl_sp_token}" STREQUAL "+4096")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_dh ON)
++        set(_wolfssl_sp_ff_4096 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "smallrsa4096")
++        set(_wolfssl_sp_small ON)
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_4096 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "rsa4096")
++        set(_wolfssl_sp_rsa ON)
++        set(_wolfssl_sp_ff_4096 ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "smallstack")
++        set(_wolfssl_sp_small_stack ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "nomalloc")
++        set(_wolfssl_sp_no_malloc ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "transposedtable")
++        set(_wolfssl_sp_no_transposed_table OFF)
++    elseif("${_wolfssl_sp_token}" STREQUAL "notransposedtable")
++        set(_wolfssl_sp_no_transposed_table ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "nonblock")
++        set(_wolfssl_sp_nonblock ON)
++        set(_wolfssl_sp_no_malloc ON)
++        set(_wolfssl_sp_small ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "asm")
++        set(_wolfssl_sp_asm_request_set ON)
++        set(_wolfssl_sp_asm_requested ON)
++    elseif("${_wolfssl_sp_token}" STREQUAL "noasm")
++        set(_wolfssl_sp_asm_request_set ON)
++        set(_wolfssl_sp_asm_requested OFF)
++    else()
++        message(FATAL_ERROR
++            "Invalid WOLFSSL_SP token '${_wolfssl_sp_token}' in '${WOLFSSL_SP}'. "
++            "Supported tokens: yes, no, small, smallfast, smallstack, nomalloc, "
++            "nonblock, transposedtable, notransposedtable, asm, noasm, ec256, "
++            "ec384, ec521, ec1024, sm2, 256, 384, 521, 1024, 2048, 3072, 4096.")
++    endif()
++endforeach()
++
++set(_wolfssl_sp_active OFF)
++if(_wolfssl_sp_rsa AND WOLFSSL_RSA)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_SP_RSA")
++    set(_wolfssl_sp_active ON)
++endif()
++if(_wolfssl_sp_dh AND WOLFSSL_DH)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_SP_DH")
++    set(_wolfssl_sp_active ON)
++endif()
++if(_wolfssl_sp_ecc AND WOLFSSL_ECC)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_HAVE_SP_ECC")
++    set(_wolfssl_sp_active ON)
++endif()
++
++if(_wolfssl_sp_rsa OR _wolfssl_sp_dh)
++    if(NOT _wolfssl_sp_ff_2048)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_2048")
++    endif()
++    if(NOT _wolfssl_sp_ff_3072)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_3072")
++    endif()
++    if(_wolfssl_sp_ff_4096)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_4096")
++    endif()
++    if(_wolfssl_sp_64bit_cpu AND NOT _wolfssl_sp_small)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_LARGE_CODE")
++    endif()
++endif()
++
++if(_wolfssl_sp_ecc AND WOLFSSL_ECC)
++    if(NOT _wolfssl_sp_ec_256)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_256")
++    endif()
++    if(_wolfssl_sp_ec_384)
++        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC384" "-DWOLFSSL_SP_384")
++    endif()
++    if(_wolfssl_sp_ec_521)
++        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC521" "-DWOLFSSL_SP_521")
++    endif()
++    if(_wolfssl_sp_sakke_1024)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_1024")
++    endif()
++    if(_wolfssl_sp_sm2)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_SM2")
++    endif()
++endif()
++
++if(_wolfssl_sp_small)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_SMALL")
++endif()
++if(_wolfssl_sp_small_stack)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_SMALL_STACK")
++endif()
++if(_wolfssl_sp_no_malloc)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_MALLOC")
++endif()
++if(_wolfssl_sp_no_transposed_table)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_TRANSPOSED_TABLE")
++endif()
++if(_wolfssl_sp_nonblock)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NONBLOCK")
++endif()
++
++# configure.ac replaces the requested token list with whether any enabled
++# algorithm (RSA, DH, or ECC) can use SP. Use the same effective value for
++# source selection while leaving the cache entry intact for diagnostics.
++if(_wolfssl_sp_active)
++    set(WOLFSSL_SP ON)
++else()
++    set(WOLFSSL_SP OFF)
++endif()
++set(WOLFSSL_SP_ASM OFF)
++
++# Unrestricted SP math is always the effective backend when enabled. Keep the
++# fast-math source selection and cache option untouched when assembly is off:
++# configure.ac builds tfm.c in that case, but settings.h selects the default SP
++# math all backend because USE_FAST_MATH is not defined.
++if(WOLFSSL_SP_MATH_ALL)
++    list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DUSE_FAST_MATH")
++    set(WOLFSSL_SLOW_MATH "no")
++
++    if(WOLFSSL_ASM)
++        # configure.ac disables the fast-math cache option when unrestricted SP
++        # math and assembly are both active.
++        override_cache(WOLFSSL_FAST_MATH "no")
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_MATH_ALL")
++        if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(x86_64|AMD64|amd64)$")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_X86_64")
++        endif()
++    endif()
++endif()
++
++if(WOLFSSL_SP_MATH)
++    if(WOLFSSL_ECCCUSTCURVES)
++        message(FATAL_ERROR "WOLFSSL_SP_MATH cannot be used with WOLFSSL_ECCCUSTCURVES.")
++    endif()
++    if(WOLFSSL_DSA)
++        message(FATAL_ERROR "WOLFSSL_SP_MATH cannot be used with DSA.")
++    endif()
++    if(WOLFSSL_SRP)
++        message(FATAL_ERROR "WOLFSSL_SP_MATH cannot be used with SRP.")
++    endif()
++    if(WOLFSSL_RSA AND NOT _wolfssl_sp_rsa)
++        message(FATAL_ERROR
++            "WOLFSSL_SP_MATH with RSA requires RSA support in WOLFSSL_SP.")
++    endif()
++    if(WOLFSSL_DH AND NOT _wolfssl_sp_dh)
++        message(FATAL_ERROR
++            "WOLFSSL_SP_MATH with DH requires DH support in WOLFSSL_SP.")
++    endif()
++    if(WOLFSSL_ECC AND NOT _wolfssl_sp_ecc)
++        message(FATAL_ERROR
++            "WOLFSSL_SP_MATH with ECC requires ECC support in WOLFSSL_SP.")
++    endif()
++    if(NOT _wolfssl_sp_active AND
++       (WOLFSSL_RSA OR WOLFSSL_DH OR WOLFSSL_ECC))
++        message(FATAL_ERROR
++            "WOLFSSL_SP_MATH requires SP support for every enabled RSA, DH, or ECC algorithm.")
++    endif()
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_MATH")
++endif()
++
++# SP assembly defaults on for restricted SP math on supported 64-bit hosts.
++# Explicit asm/noasm tokens override that default.
++set(_wolfssl_sp_asm_enabled OFF)
++if(NOT _wolfssl_sp_asm_request_set)
++    if(_wolfssl_sp_asm_default)
++        set(_wolfssl_sp_asm_enabled ON)
++    endif()
++elseif(_wolfssl_sp_asm_requested)
++    set(_wolfssl_sp_asm_enabled ON)
++endif()
++
++
++if(_wolfssl_sp_asm_enabled)
++    if(NOT _wolfssl_sp_active)
++        # configure.ac accepts an asm/noasm token without an algorithm token,
++        # but does not enable SP assembly unless SP itself is active.
++        set(_wolfssl_sp_asm_enabled OFF)
++    elseif((WIN32 OR CMAKE_SYSTEM_NAME MATCHES "^(Windows|MSYS|MINGW)$") AND
++           "${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(x86_64|AMD64|amd64)$")
++        if(_wolfssl_sp_asm_requested)
++            message(FATAL_ERROR
++                "SP assembly is not supported for x86_64 Windows hosts; disable the asm token.")
++        else()
++            message(WARNING
++                "SP assembly is not supported for x86_64 Windows hosts; using the C implementation.")
++            set(_wolfssl_sp_asm_enabled OFF)
++        endif()
++    endif()
++endif()
++
++if(_wolfssl_sp_asm_enabled)
++    if(NOT WOLFSSL_ASM)
++        message(FATAL_ERROR "SP assembly cannot be used when WOLFSSL_ASM=no.")
++    endif()
++
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_ASM")
++    set(WOLFSSL_SP_ASM ON)
++    if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(x86_64|AMD64|amd64)$")
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_X86_64_ASM")
++        set(WOLFSSL_SP_X86_64_ASM ON)
++    elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(aarch64|arm64)$")
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_ARM64_ASM")
++        set(WOLFSSL_SP_ARM64_ASM ON)
++    else()
++        message(FATAL_ERROR
++            "SP assembly is not supported for target processor '${WOLFSSL_TARGET_PROCESSOR}'.")
++    endif()
++endif()
++
++# configure.ac disables all big-integer backends when SP math, SP math all,
++# fast math, and heap math are all off. CMake does not expose a heap-math
++# option, so its default no-heap-math behavior maps directly to this test.
++# Without NO_BIG_INT, settings.h falls back to WOLFSSL_SP_MATH_ALL while
++# sp_int.c is omitted from the source list.
++if(NOT WOLFSSL_SP_MATH AND NOT WOLFSSL_SP_MATH_ALL AND
++   NOT WOLFSSL_FAST_MATH)
++    list(APPEND WOLFSSL_DEFINITIONS "-DNO_BIG_INT")
++endif()
++
++####################################################
++# ARM assembly acceleration (parity with configure.ac --enable-armasm)
++####################################################
++
++# configure.ac parses --enable-armasm as a comma-separated token list, so it
++# must stay a raw STRING. The cache keeps the Autotools vocabulary; the
++# effective flags below are reduced to ON/OFF for CMake if() tests.
++set(WOLFSSL_ARMASM "no" CACHE STRING
++    "Enable wolfSSL ARMv8 assembly with optional comma-separated settings")
++set_property(CACHE WOLFSSL_ARMASM PROPERTY STRINGS
++    "no;yes;inline;no-crypto;sha256-small;sha512-crypto;sha3-crypto;no-sha512-crypto;no-sha3-crypto;sm4;sm3;barrier-sb;barrier-detect;aes-block-dup;no-base;no-neon-impl")
++
++# These apply to the whole target, matching configure.ac's AM_CPPFLAGS so the
++# C and assembler compilations see the same architecture.
++set(_wolfssl_armasm_compile_options "")
++
++# Classify the target CPU the way configure.ac classifies $host_cpu.
++set(_wolfssl_armasm_cpu "")
++if("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(aarch64|arm64)")
++    set(_wolfssl_armasm_cpu "aarch64")
++elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(armv7a|armv7l)")
++    set(_wolfssl_armasm_cpu "armv7a")
++elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^armv7m")
++    set(_wolfssl_armasm_cpu "armv7m")
++elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^armv6")
++    set(_wolfssl_armasm_cpu "armv6")
++elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^armv4")
++    set(_wolfssl_armasm_cpu "armv4")
++elseif("${WOLFSSL_TARGET_PROCESSOR}" MATCHES "^(arm|thumb)")
++    set(_wolfssl_armasm_cpu "arm")
++endif()
++
++set(_wolfssl_armasm_requested OFF)
++if(NOT "${WOLFSSL_ARMASM}" STREQUAL "no" AND
++   NOT "${WOLFSSL_ARMASM}" STREQUAL "")
++    set(_wolfssl_armasm_requested ON)
++endif()
++
++set(_wolfssl_armasm_enabled OFF)
++set(_wolfssl_armasm_inline OFF)
++set(_wolfssl_armasm_thumb2 OFF)
++set(_wolfssl_armasm_plus OFF)
++set(_wolfssl_armasm_crypto "unknown")
++set(_wolfssl_armasm_neon "unknown")
++set(_wolfssl_armasm_sha3 "unknown")
++set(_wolfssl_armasm_sm3 OFF)
++set(_wolfssl_armasm_sm4 OFF)
++set(_wolfssl_armasm_sha256_small OFF)
++set(_wolfssl_armasm_no_base_impl OFF)
++set(_wolfssl_armasm_no_neon_impl OFF)
++set(_wolfssl_armasm_barrier_sb OFF)
++set(_wolfssl_armasm_barrier_detect OFF)
++set(_wolfssl_armasm_aes_block_inline OFF)
++set(_wolfssl_armasm_arm_32 OFF)
++set(_wolfssl_armasm_arm_64 OFF)
++
++if(_wolfssl_armasm_requested AND WOLFSSL_ASM)
++    if("${_wolfssl_armasm_cpu}" STREQUAL "")
++        message(FATAL_ERROR
++            "WOLFSSL_ARMASM is only supported for ARM targets, but the target "
++            "processor is '${WOLFSSL_TARGET_PROCESSOR}'.")
++    endif()
++
++    string(REPLACE "," ";" _wolfssl_armasm_tokens "${WOLFSSL_ARMASM}")
++    foreach(_wolfssl_armasm_token IN LISTS _wolfssl_armasm_tokens)
++        if("${_wolfssl_armasm_token}" STREQUAL "")
++            continue()
++        elseif("${_wolfssl_armasm_token}" STREQUAL "yes")
++            # Base ARM assembly, no extra behaviour.
++        elseif("${_wolfssl_armasm_token}" STREQUAL "inline")
++            set(_wolfssl_armasm_inline ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "no-crypto")
++            set(_wolfssl_armasm_crypto "no")
++        elseif("${_wolfssl_armasm_token}" STREQUAL "sha256-small")
++            if(NOT "${_wolfssl_armasm_cpu}" MATCHES "^arm")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'sha256-small' is only available on 32-bit ARM.")
++            endif()
++            set(_wolfssl_armasm_sha256_small ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "sha512-crypto" OR
++               "${_wolfssl_armasm_token}" STREQUAL "sha3-crypto")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token '${_wolfssl_armasm_token}' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_sha3 "yes")
++            set(_wolfssl_armasm_plus ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "no-sha512-crypto" OR
++               "${_wolfssl_armasm_token}" STREQUAL "no-sha3-crypto")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token '${_wolfssl_armasm_token}' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_sha3 "no")
++        elseif("${_wolfssl_armasm_token}" STREQUAL "sm4")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'sm4' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_sm4 ON)
++            set(_wolfssl_armasm_plus ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "sm3")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'sm3' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_sm3 ON)
++            # SM3 uses the SM4 round instructions, so the toolchain needs the
++            # same +sm4 march feature and the SM4 macro as the sm4 token.
++            set(_wolfssl_armasm_sm4 ON)
++            set(_wolfssl_armasm_plus ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "barrier-sb")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'barrier-sb' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_barrier_sb ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "barrier-detect")
++            if(NOT "${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'barrier-detect' is only available on AArch64.")
++            endif()
++            set(_wolfssl_armasm_barrier_detect ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "aes-block-dup")
++            if(NOT "${_wolfssl_armasm_cpu}" MATCHES "^arm")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'aes-block-dup' is only available on 32-bit ARM.")
++            endif()
++            set(_wolfssl_armasm_aes_block_inline ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "no-base")
++            if(NOT "${_wolfssl_armasm_cpu}" MATCHES "^arm")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'no-base' is only available on 32-bit ARM.")
++            endif()
++            set(_wolfssl_armasm_no_base_impl ON)
++        elseif("${_wolfssl_armasm_token}" STREQUAL "no-neon-impl")
++            if(NOT "${_wolfssl_armasm_cpu}" MATCHES "^arm")
++                message(FATAL_ERROR
++                    "WOLFSSL_ARMASM token 'no-neon-impl' is only available on 32-bit ARM.")
++            endif()
++            set(_wolfssl_armasm_no_neon_impl ON)
++        else()
++            message(FATAL_ERROR
++                "Invalid WOLFSSL_ARMASM token '${_wolfssl_armasm_token}' in "
++                "'${WOLFSSL_ARMASM}'. Supported tokens: yes, inline, no-crypto, "
++                "sha256-small, sha512-crypto, sha3-crypto, no-sha512-crypto, "
++                "no-sha3-crypto, sm4, sm3, barrier-sb, barrier-detect, "
++                "aes-block-dup, no-base, no-neon-impl.")
++        endif()
++    endforeach()
++
++    set(_wolfssl_armasm_enabled ON)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM")
++
++    # Architecture defaults from configure.ac.
++    if("${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++        set(_wolfssl_armasm_neon ON)
++        set(_wolfssl_armasm_arm_64 ON)
++        if(APPLE AND "${_wolfssl_armasm_sha3}" STREQUAL "unknown")
++            # Darwin assembles the SHA512/SHA3 instructions by default.
++            set(_wolfssl_armasm_sha3 "yes")
++        endif()
++        if("${_wolfssl_armasm_crypto}" STREQUAL "unknown")
++            set(_wolfssl_armasm_crypto "yes")
++        endif()
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv7a")
++        set(_wolfssl_armasm_crypto "no")
++        set(_wolfssl_armasm_neon ON)
++        set(_wolfssl_armasm_arm_32 ON)
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv7m")
++        set(_wolfssl_armasm_crypto "no")
++        set(_wolfssl_armasm_neon OFF)
++        set(_wolfssl_armasm_arm_32 ON)
++        set(_wolfssl_armasm_thumb2 ON)
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv6")
++        set(_wolfssl_armasm_crypto "no")
++        set(_wolfssl_armasm_neon OFF)
++        set(_wolfssl_armasm_arm_32 ON)
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv4")
++        set(_wolfssl_armasm_crypto "no")
++        set(_wolfssl_armasm_neon OFF)
++        set(_wolfssl_armasm_arm_32 ON)
++    else()
++        # 32-bit ARM with a toolchain default that may lack strd and rev.
++        set(_wolfssl_armasm_crypto "yes")
++        set(_wolfssl_armasm_neon ON)
++        set(_wolfssl_armasm_arm_32 ON)
++    endif()
++
++    if("${_wolfssl_armasm_sha3}" STREQUAL "unknown")
++        set(_wolfssl_armasm_sha3 "no")
++    endif()
++
++    # Token-derived compile definitions.
++    if(_wolfssl_armasm_sha256_small)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_SHA256_SMALL")
++    endif()
++    if("${_wolfssl_armasm_sha3}" STREQUAL "yes")
++        list(APPEND WOLFSSL_DEFINITIONS
++            "-DWOLFSSL_ARMASM_CRYPTO_SHA512"
++            "-DWOLFSSL_ARMASM_CRYPTO_SHA3")
++    endif()
++    if(_wolfssl_armasm_sm3)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_CRYPTO_SM3")
++    endif()
++    if(_wolfssl_armasm_sm4)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_CRYPTO_SM4")
++    endif()
++    if(_wolfssl_armasm_barrier_sb)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_BARRIER_SB")
++    endif()
++    if(_wolfssl_armasm_barrier_detect)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_BARRIER_DETECT")
++    endif()
++    if("${_wolfssl_armasm_crypto}" STREQUAL "no")
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_NO_HW_CRYPTO")
++    endif()
++    if(NOT _wolfssl_armasm_neon)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_NO_NEON")
++    endif()
++    if(_wolfssl_armasm_no_base_impl)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_NO_BASE_IMPL")
++    endif()
++    if(_wolfssl_armasm_no_neon_impl)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_NO_NEON_IMPL")
++    endif()
++    if(_wolfssl_armasm_aes_block_inline)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_AES_BLOCK_INLINE")
++    endif()
++    if(_wolfssl_armasm_thumb2)
++        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_THUMB2")
++    endif()
++
++    # Architecture compile options. As in configure.ac, leave -mcpu/-mfpu
++    # alone when the user already supplied them.
++    set(_wolfssl_armasm_user_cpu_flags OFF)
++    if("${CMAKE_C_FLAGS} ${CMAKE_ASM_FLAGS}" MATCHES "-mcpu|-mfpu")
++        set(_wolfssl_armasm_user_cpu_flags ON)
++    endif()
++    set(_wolfssl_armasm_user_strict_align OFF)
++    if("${CMAKE_C_FLAGS} ${CMAKE_ASM_FLAGS}" MATCHES "-mstrict-align")
++        set(_wolfssl_armasm_user_strict_align ON)
++    endif()
++
++    if("${_wolfssl_armasm_cpu}" STREQUAL "aarch64")
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            if(_wolfssl_armasm_plus)
++                set(_wolfssl_armasm_march "-march=armv8.2-a+crypto")
++                if("${_wolfssl_armasm_sha3}" STREQUAL "yes")
++                    set(_wolfssl_armasm_march "${_wolfssl_armasm_march}+sha3")
++                endif()
++                if(_wolfssl_armasm_sm3 OR _wolfssl_armasm_sm4)
++                    set(_wolfssl_armasm_march "${_wolfssl_armasm_march}+sm4")
++                endif()
++                list(APPEND _wolfssl_armasm_compile_options "${_wolfssl_armasm_march}")
++            else()
++                list(APPEND _wolfssl_armasm_compile_options "-mcpu=generic+crypto")
++                list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AARCH64_NO_SQRDMLSH")
++            endif()
++        endif()
++        if(NOT _wolfssl_armasm_user_strict_align)
++            list(APPEND _wolfssl_armasm_compile_options "-mstrict-align")
++        endif()
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv7a")
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            list(APPEND _wolfssl_armasm_compile_options
++                "-march=armv7-a" "-mfpu=neon" "-marm")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=7")
++        endif()
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv7m")
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            list(APPEND _wolfssl_armasm_compile_options "-march=armv7-r")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=7")
++        endif()
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv6")
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            list(APPEND _wolfssl_armasm_compile_options "-march=armv6")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=6")
++        endif()
++    elseif("${_wolfssl_armasm_cpu}" STREQUAL "armv4")
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            list(APPEND _wolfssl_armasm_compile_options "-march=armv4")
++            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARM_ARCH=4")
++        endif()
++    else()
++        if(NOT _wolfssl_armasm_user_cpu_flags)
++            list(APPEND _wolfssl_armasm_compile_options
++                "-march=armv8-a" "-mfpu=crypto-neon-fp-armv8" "-marm")
++        endif()
++    endif()
++elseif(_wolfssl_armasm_requested)
++    message(WARNING
++        "Conflicting asm settings: WOLFSSL_ARMASM ignored because WOLFSSL_ASM=no.")
++endif()
++
++# The "inline" token and the standalone WOLFSSL_ARMASM_INLINE option both
++# select the inline sources and define the matching macro, but only while ARM
++# assembly itself is enabled.
++if(_wolfssl_armasm_enabled AND
++   (_wolfssl_armasm_inline OR WOLFSSL_ARMASM_INLINE))
++    set(_wolfssl_armasm_inline_effective ON)
++else()
++    set(_wolfssl_armasm_inline_effective OFF)
++endif()
++if(_wolfssl_armasm_inline_effective)
++    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
++endif()
++
++# Effective internal flags consumed by generate_build_flags() and the source
++# list. The cache option keeps the user's yes/no spelling; these are ON/OFF.
++if(_wolfssl_armasm_enabled)
++    set(WOLFSSL_ARM_ASM ON)
++else()
++    set(WOLFSSL_ARM_ASM OFF)
++endif()
++set(WOLFSSL_ARMASM_INLINE ${_wolfssl_armasm_inline_effective})
++if(_wolfssl_armasm_thumb2)
++    set(WOLFSSL_ARMASM_THUMB2 ON)
++else()
++    set(WOLFSSL_ARMASM_THUMB2 OFF)
++endif()
++
++# Mirrors the AM_CONDITIONALs in configure.ac. BUILD_ARMASM_NEON and
++# BUILD_ARMASM_CRYPTO are hard tests; the ARM_32/ARM_64/THUMB/NONTHUMB
++# conditionals also become true under WOLFSSL_USER_SETTINGS because that mode
++# defers the choice to user_settings.h.
++if("${_wolfssl_armasm_crypto}" STREQUAL "yes")
++    set(WOLFSSL_ARMASM_CRYPTO ON)
++else()
++    set(WOLFSSL_ARMASM_CRYPTO OFF)
++endif()
++if(_wolfssl_armasm_neon)
++    set(WOLFSSL_ARMASM_NEON ON)
++else()
++    set(WOLFSSL_ARMASM_NEON OFF)
++endif()
++if(_wolfssl_armasm_thumb2 OR WOLFSSL_USER_SETTINGS)
++    set(WOLFSSL_ARM_THUMB ON)
++else()
++    set(WOLFSSL_ARM_THUMB OFF)
++endif()
++if(NOT _wolfssl_armasm_thumb2 OR WOLFSSL_USER_SETTINGS)
++    set(WOLFSSL_ARM_NONTHUMB ON)
++else()
++    set(WOLFSSL_ARM_NONTHUMB OFF)
++endif()
++if(_wolfssl_armasm_arm_32 OR WOLFSSL_USER_SETTINGS)
++    set(WOLFSSL_ARM_32 ON)
++else()
++    set(WOLFSSL_ARM_32 OFF)
++endif()
++if(_wolfssl_armasm_arm_64 OR WOLFSSL_USER_SETTINGS)
++    set(WOLFSSL_ARM_64 ON)
++else()
++    set(WOLFSSL_ARM_64 OFF)
++endif()
++
+ # All options are declared by this point; report any force_option() that no
+ # add_option() consumed (would otherwise be a silent no-op).
+ wolfssl_warn_unconsumed_forces()
+@@ -4843,6 +5666,19 @@
+ # Corresponds to the instances of "src_libwolfssl_la_SOURCES += ..."
+ # in the *.am files.
+ generate_lib_src_list("${LIB_SOURCES}")
++
++# configure.ac selects the 64-bit AES asm alongside the 32-bit guarded source.
++# cmake/functions.cmake currently lists only the 32-bit file, so restore parity
++# here before creating the target.
++if(WOLFSSL_AESNI AND WOLFSSL_X86_64_BUILD)
++    list(REMOVE_ITEM LIB_SOURCES "wolfcrypt/src/aes_asm.S")
++    list(APPEND LIB_SOURCES "wolfcrypt/src/aes_x86_64_asm.S")
++    if("-DWOLFSSL_AES_XTS" IN_LIST WOLFSSL_DEFINITIONS)
++        list(REMOVE_ITEM LIB_SOURCES "wolfcrypt/src/aes_xts_x86_asm.S")
++        list(APPEND LIB_SOURCES "wolfcrypt/src/aes_xts_asm.S")
++    endif()
++endif()
++
+ if(BUILD_SHARED_LIBS)
+     message(STATUS "BUILD_SHARED_LIBS enabled: ${LIB_SOURCES}")
+     add_library(wolfssl SHARED ${LIB_SOURCES})
+@@ -5024,6 +5860,28 @@
+ endif()
+ target_compile_definitions(wolfssl PRIVATE ${WOLFSSL_DEFINITIONS})
+ 
++if(_wolfssl_intel_asm_effective AND
++   CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
++    if(WIN32 OR CMAKE_SYSTEM_NAME MATCHES "^(Windows|MSYS|MINGW)$")
++        target_compile_options(wolfssl PRIVATE "-maes" "-msse4" "-mpclmul")
++    else()
++        target_compile_options(wolfssl PRIVATE "-maes")
++    endif()
++endif()
++
++if(_wolfssl_armasm_enabled AND
++   CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
++    target_compile_options(wolfssl PRIVATE
++        ${_wolfssl_armasm_compile_options})
++endif()
++
++# configure.ac puts this on AM_CCASFLAGS only. It makes the generated
++# options.h visible while preprocessing the standalone .S sources.
++if(_wolfssl_armasm_enabled)
++    target_compile_options(wolfssl PRIVATE
++        "$<$<COMPILE_LANGUAGE:ASM>:-DEXTERNAL_OPTS_OPENVPN>")
++endif()
++
+ ####################################################
+ # Include Directories
+ ####################################################

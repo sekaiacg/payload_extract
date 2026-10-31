@@ -3,8 +3,8 @@
 #include "payload/Utils.h"
 
 namespace skkk {
-	FileBuffer::FileBuffer(uint8_t *data, uint64_t offset)
-		: data(data), offset(offset) {
+	FileBuffer::FileBuffer(uint8_t *data, uint64_t capacity, uint64_t offset)
+		: data(data), capacity(capacity), offset(offset) {
 	}
 
 	HttpDownload::HttpDownload(const std::string &url, bool sslVerification) {

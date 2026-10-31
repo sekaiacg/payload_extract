@@ -8,10 +8,10 @@
 #include "files/io.h"
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
+#include "payload/verify/SHA256Utils.h"
 #include "payload/verify/VerifyWriter.h"
 
 #include "ecc.h"
-#include "sha256Utils.h"
 
 extern "C" {
 #include "fec.h"
@@ -104,7 +104,7 @@ namespace skkk {
 
 		ret = IO::blobRead(inFd, readData, readFilePos, blockSize);
 		if (ret) goto exit;
-		if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
+		if (!SHA256Utils::sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
 			ret = -EIO;
 		}
 
@@ -162,7 +162,7 @@ namespace skkk {
 			auto *hashData = level.hashData;
 			while (readPos < preLevel->totalHashSize) {
 				memcpy(readData, preHashData + readPos, blockSize);
-				if (!sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
+				if (!SHA256Utils::sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
 					++*hashTreeExcSize;
 				}
 				readPos += blockSize;

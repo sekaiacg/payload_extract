@@ -24,7 +24,7 @@
 #include <cstdlib>
 #include <memory.h>
 
-#include "sha256.h"
+#include "sha256c.h"
 
 static constexpr uint32_t K[] =
 {

@@ -13,18 +13,6 @@ namespace skkk {
 				"Dalvik/2.1.0 (Linux; U; Android 15; RMX5010 Build/AP3A.240617.008)"
 			}
 		};
-		initCA();
-	}
-
-	void CprHttpDownload::initCA() {
-#if defined(__linux__)
-		if (CA_BUNDLE.empty()) {
-			CA_BUNDLE = findCaBundlePath();
-		}
-		if (CA_PATH.empty()) {
-			CA_PATH = findCaPath();
-		}
-#endif
 	}
 
 	void CprHttpDownload::initSession(cpr::Session &session) const {
@@ -36,25 +24,8 @@ namespace skkk {
 		session.SetConnectionPool(connectionPool);
 		if (startsWithIgnoreCase(cprUrl.c_str(), "https")) {
 			session.SetVerifySsl(sslVerification);
-			if (sslVerification) {
-				CURL *curl = session.GetCurlHolder()->handle;
-#if defined(__linux__)
-				if (CA_BUNDLE != "NONE") {
-					curl_easy_setopt(curl, CURLOPT_CAINFO, CA_BUNDLE.c_str());
-					curl_easy_setopt(curl, CURLOPT_PROXY_CAINFO, CA_BUNDLE.c_str());
-				}
-				if (CA_PATH != "NONE") {
-					curl_easy_setopt(curl, CURLOPT_CAPATH, CA_PATH.c_str());
-					curl_easy_setopt(curl, CURLOPT_PROXY_CAPATH, CA_PATH.c_str());
-				}
-
-				LOGCD("CA_BUNDLE={} CA_PATH={}", CA_BUNDLE, CA_PATH);
-#elif !defined(__ANDROID__)
-				curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-#endif
-			}
 			LOGCD("Url: SSL verification={}", sslVerification);
-		}
+		};
 	}
 
 	void CprHttpDownload::setUrl(const std::string &url) {
@@ -80,7 +51,6 @@ namespace skkk {
 		cpr::Session session;
 		initSession(session);
 		session.SetRange(cpr::Range{offset, offset + length - 1});
-
 		const auto &r = session.Download(cpr::WriteCallback{
 			writeDataStr,
 			reinterpret_cast<intptr_t>(&data)

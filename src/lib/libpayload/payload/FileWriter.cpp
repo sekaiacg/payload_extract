@@ -24,7 +24,7 @@ namespace skkk {
 	}
 
 	int FileWriter::urlRead(uint8_t *data, const FileOperation &operation) const {
-		FileBuffer fb{data, 0};
+		FileBuffer fb{data, operation.dataLength, 0};
 
 	retry:
 		if (std::get<0>(httpDownload->download(fb, operation.dataOffset, operation.dataLength))) {

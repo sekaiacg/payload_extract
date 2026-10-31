@@ -65,7 +65,7 @@ namespace skkk {
 
 	bool UrlPayloadInfo::handleOffset() {
 		uint8_t data[HEADER_DATA_SIZE] = {};
-		FileBuffer fb{data, 0};
+		FileBuffer fb{data, HEADER_DATA_SIZE, 0};
 		if (!download(fb, 0, HEADER_DATA_SIZE)) return false;
 		if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC, ZIP_LOCAL_FILE_HEADER_SIZE) == 0) {
 			if (initPayloadOffsetByFastParseZip(data, HEADER_DATA_SIZE)) {
@@ -83,7 +83,7 @@ namespace skkk {
 
 	bool UrlPayloadInfo::parseHeader() {
 		uint8_t data[kMaxPayloadHeaderSize] = {};
-		FileBuffer fb{data, 0};
+		FileBuffer fb{data, kMaxPayloadHeaderSize, 0};
 		if (download(fb, payloadOffset, kMaxPayloadHeaderSize)) {
 			return pHeader.parseHeader(data);
 		}
@@ -95,7 +95,7 @@ namespace skkk {
 		auto &manifest = pHeader.manifest;
 		const auto manifestSize = pHeader.manifestSize;
 		manifest.reserve(manifestSize);
-		FileBuffer fb{manifest.get(), 0};
+		FileBuffer fb{manifest.get(), manifestSize, 0};
 		if (download(fb, payloadOffset + inPayloadOffset, manifestSize)) {
 			inPayloadOffset += manifestSize;
 			return true;

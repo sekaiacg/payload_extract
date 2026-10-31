@@ -9,10 +9,11 @@ namespace skkk {
 	class FileBuffer {
 		public:
 			uint8_t *data = nullptr;
+			uint64_t capacity = 0;
 			uint32_t offset = 0;
 
 		public:
-			FileBuffer(uint8_t *data, uint64_t offset);
+			FileBuffer(uint8_t *data, uint64_t capacity, uint64_t offset);
 
 			~FileBuffer() { data = nullptr; }
 	};

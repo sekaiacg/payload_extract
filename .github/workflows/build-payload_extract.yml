@@ -77,14 +77,8 @@ jobs:
           echo "androidArmv8aDir=target/Android_arm64-v8a" >> $GITHUB_OUTPUT
           androidArm64v8aName=`ls -d target/Android_arm64-v8a/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidArm64v8aName=$androidArm64v8aName" >> $GITHUB_OUTPUT
 
-          echo "androidArmeabiv7Dir=target/Android_armeabi-v7a" >> $GITHUB_OUTPUT
-          androidArmeabiv7aName=`ls -d target/Android_armeabi-v7a/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidArmeabiv7aName=$androidArmeabiv7aName" >> $GITHUB_OUTPUT
-
           echo "androidX86x64Dir=target/Android_x86_64" >> $GITHUB_OUTPUT
           androidX86x64Name=`ls -d target/Android_x86_64/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidX86x64Name=$androidX86x64Name" >> $GITHUB_OUTPUT
-
-          echo "androidX86Dir=target/Android_x86" >> $GITHUB_OUTPUT
-          androidX86Name=`ls -d target/Android_x86/payload_extract-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidX86Name=$androidX86Name" >> $GITHUB_OUTPUT
 
       - name: Upload payload_extract Android_arm64-v8a
         if: success()
@@ -93,26 +87,12 @@ jobs:
           name: ${{ steps.Artifact.outputs.androidArm64v8aName }}
           path: '${{ steps.Artifact.outputs.androidArmv8aDir }}/${{ steps.Artifact.outputs.androidArm64v8aName }}/*'
 
-      - name: Upload payload_extract Android_armeabi-v7a
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.Artifact.outputs.androidArmeabiv7aName }}
-          path: '${{ steps.Artifact.outputs.androidArmeabiv7Dir }}/${{ steps.Artifact.outputs.androidArmeabiv7aName }}/*'
-
       - name: Upload payload_extract Android_x86_64
         if: success()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.Artifact.outputs.androidX86x64Name }}
           path: '${{ steps.Artifact.outputs.androidX86x64Dir }}/${{ steps.Artifact.outputs.androidX86x64Name }}/*'
-
-      - name: Upload payload_extract Android_x86
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.Artifact.outputs.androidX86Name }}
-          path: '${{ steps.Artifact.outputs.androidX86Dir }}/${{ steps.Artifact.outputs.androidX86Name }}/*'
 
   Build-linux:
     runs-on: ubuntu-latest
@@ -204,9 +184,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: 'recursive'
+          submodules: false
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Init and Update Specific Submodules
+        run: |
+          git submodule init
+          git submodule update --init --recursive -- . ":(exclude)src/lib/wolfssl"
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -270,9 +255,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: 'recursive'
+          submodules: false
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Init and Update Specific Submodules
+        run: |
+          git submodule init
+          git submodule update --init --recursive -- . ":(exclude)src/lib/wolfssl"
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2

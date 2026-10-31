@@ -59,6 +59,10 @@ cmake_build()
                 -DCMAKE_C_COMPILER_TARGET="aarch64-linux-gnu" \
                 -DCMAKE_CXX_COMPILER_TARGET="aarch64-linux-gnu" \
                 -DCMAKE_ASM_COMPILER_TARGET="aarch64-linux-gnu" \
+                -DCMAKE_FIND_ROOT_PATH="/usr/lib/gcc/aarch64-linux-gnu/14/include" \
+                -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM="NEVER" \
+                -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY="ONLY" \
+                -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE="ONLY" \
                 -DCMAKE_C_FLAGS="" \
                 -DCMAKE_CXX_FLAGS="" \
                 -DENABLE_FULL_LTO="ON"
@@ -136,9 +140,7 @@ build()
 build_android()
 {
     build "Android" "arm64-v8a" "android-31"
-    build "Android" "armeabi-v7a" "android-31"
     build "Android" "x86_64" "android-31"
-    build "Android" "x86" "android-31"
 }
 
 build_linux()

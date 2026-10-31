@@ -10,7 +10,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
-option(LIB_USE_MBEDTLS "Using MbedTLS with SHA256 or TSL. default: ON" ON)
 option(ENABLE_HTTP_CPR "Enable cpr HTTP download implementation. default: ON" ON)
 option(LOG_ENABLE_COLOR "Add color when outputting logs" ON)
 option(BUILD_PAYLOAD_EXTRACT "Whether to compile the payload_extract? default: ON" ON)
@@ -47,10 +46,6 @@ set(GLOBAL_LDFLAGS
 set(GLOBAL_LDFLAGS_RELEASE)
 
 message(STATUS "[payload_extract] Build type is ${CMAKE_BUILD_TYPE}")
-
-if (LIB_USE_MBEDTLS)
-    list(APPEND GLOBAL_CFLAGS "-DLIB_USE_MBEDTLS")
-endif ()
 
 # OS link flags
 if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")

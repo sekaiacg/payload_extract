@@ -29,22 +29,28 @@ target_include_directories(${TARGET}
     "${PROJECT_SOURCE_DIR}/src/lib/xz/src/liblzma/api"
 )
 
-set(COMMON_LINK_LIBS files_static fec_rs_static bz2_static bspatch_static liblzma libzstd protobuf-cpp-full)
-if (ENABLE_HTTP_CPR)
-    target_compile_definitions(${TARGET} PRIVATE "-DENABLE_HTTP_CPR")
-    list(APPEND COMMON_LINK_LIBS cpr::cpr)
-    if (LIB_USE_MBEDTLS)
-        list(APPEND COMMON_LINK_LIBS MbedTLS::mbedtls MbedTLS::mbedcrypto MbedTLS::mbedx509)
-    elseif (LIB_USE_OPENSSL)
-        list(APPEND COMMON_LINK_LIBS OpenSSL::SSL OpenSSL::Crypto)
-    endif ()
-endif ()
+set(COMMON_LINK_LIBS
+    files_static
+    fec_rs_static
+    bz2_static
+    bspatch_static
+    liblzma libzstd
+    protobuf-cpp-full
+)
 
-if (LIB_USE_MBEDTLS)
-    list(APPEND COMMON_LINK_LIBS MbedTLS::mbedcrypto MbedTLS::mbedx509)
-else (LIB_USE_OPENSSL)
-    target_compile_definitions(${TARGET} PRIVATE "-DLIB_USE_OPENSSL")
-    list(APPEND COMMON_LINK_LIBS OpenSSL::Crypto)
+if (USE_LIB_WOLFSSL)
+    list(APPEND COMMON_LINK_LIBS WolfSSL::wolfssl)
+    target_compile_definitions(${TARGET} PRIVATE "LIB_USE_WOLFSSL")
+endif ()
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_definitions(${TARGET} PRIVATE "LIB_USE_COMM_CRYPTO")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(APPEND COMMON_LINK_LIBS bcrypt)
+    target_compile_definitions(${TARGET} PRIVATE "LIB_USE_BCRYPT" "_WIN32_WINNT=0x0A00")
+endif ()
+if (ENABLE_HTTP_CPR)
+    list(APPEND COMMON_LINK_LIBS cpr::cpr)
+    target_compile_definitions(${TARGET} PRIVATE "ENABLE_HTTP_CPR")
 endif ()
 target_link_libraries(${TARGET} PUBLIC ${COMMON_LINK_LIBS})
 

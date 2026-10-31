@@ -94,7 +94,7 @@ static int parseExtractOperation(const int argc, char **argv, ExtractOperation &
 				break;
 			case 'k':
 				eo.sslVerification = false;
-				LOGCD("Skip SSL verification={}", eo.sslVerification);
+				LOGCD("SSL verification={}", eo.sslVerification);
 				break;
 			case 'o':
 				if (optarg) {
