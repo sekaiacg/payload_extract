@@ -8,6 +8,7 @@
 #include "files/io.h"
 #include "payload/ExtractConfig.h"
 #include "payload/LogBase.h"
+#include "payload/common/Buffer.hpp"
 #include "payload/verify/SHA256Utils.h"
 #include "payload/verify/VerifyWriter.h"
 
@@ -68,7 +69,8 @@ namespace skkk {
 		for (const auto &partInfo: partitions) {
 			if (partInfo.hasHashTreeDataExtent) {
 				auto &verifyInfo = verifyInfos.emplace_back(partInfo);
-				auto &topLevel = verifyInfo.topHashLevel;
+				auto &topLevel = verifyInfo.hashLevels.emplace_back(verifyInfo.hashTreeDataExtentSize,
+				                                                    partInfo.blockSize);
 				topLevel = {verifyInfo.hashTreeDataExtentSize, partInfo.blockSize};
 				uint64_t blockCount = topLevel.blockCount;
 				uint64_t totalHashTotal = topLevel.totalHashSize;
@@ -89,16 +91,16 @@ namespace skkk {
 		const auto &info = ctx.verifyInfo;
 		const auto &excSize = info.hashTreeExcSize;
 		const auto &calcProgress = info.hashTreeProgress;
-		const auto hashTreeSalt = info.hashTreeSalt.data();
+		const auto *hashTreeSalt = info.hashTreeSalt.data();
 		const auto readFilePos = ctx.readFilePos;
 		const auto writeHashPos = ctx.writeHashPos;
 		auto &inFd = ctx.inFd;
 		auto *hashData = ctx.hashData;
 		const auto blockSize = info.blockSize;
-		const auto hashTreeSaltSize = info.hashTreeSalt.size();
-		const auto SALT_VERIFY_SIZE = blockSize + hashTreeSaltSize;
-		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
-		auto *sha256Data = origData.data();
+		const auto hashTreeSaltSize = info.hashTreeSaltSize;
+		const auto SALT_VERIFY_SIZE = info.SALT_VERIFY_SIZE;
+		Buffer<uint8_t> origData{SALT_VERIFY_SIZE};
+		auto *sha256Data = origData.get();
 		auto *readData = sha256Data + hashTreeSaltSize;
 		memcpy(sha256Data, hashTreeSalt, hashTreeSaltSize);
 
@@ -120,19 +122,14 @@ namespace skkk {
 		const auto &currentProgress = info.hashTreeProgress;
 		const auto &hashTreeExcSize = info.hashTreeExcSize;
 		auto &levels = info.hashLevels;
-		const auto &topLevel = info.topHashLevel;
-		const auto *preLevel = &topLevel;
-		auto &rootLevel = info.rootHashLevel;
-		auto *preHashData = preLevel->hashData;
 		const auto blockSize = info.blockSize;
-		const auto hashTreeSaltSize = info.hashTreeSalt.size();
-		const uint64_t SALT_VERIFY_SIZE = blockSize + hashTreeSaltSize;
-		std::vector<uint8_t> origData(SALT_VERIFY_SIZE);
-		auto *sha256Data = origData.data();
+		const auto *hashTreeSalt = info.hashTreeSalt.data();
+		const auto hashTreeSaltSize = info.hashTreeSaltSize;
+		const auto SALT_VERIFY_SIZE = info.SALT_VERIFY_SIZE;
+		Buffer<uint8_t> origData{SALT_VERIFY_SIZE};
+		auto *sha256Data = origData.get();
 		auto *readData = sha256Data + hashTreeSaltSize;
-		uint64_t inDataSize = 0;
-		const uint8_t *inData = nullptr;
-		memcpy(sha256Data, info.hashTreeSalt.data(), hashTreeSaltSize);
+		memcpy(sha256Data, hashTreeSalt, hashTreeSaltSize);
 
 		inFd = IO::openFileRD(info.outFilePath);
 		if (inFd < 0) {
@@ -145,38 +142,46 @@ namespace skkk {
 			progressThread = std::async(std::launch::async, printProgressMT, config.isSilent, info.name,
 			                            HASH_TREE_FMT, info.hashTreeTotalProgress, std::ref(*currentProgress),
 			                            true);
-			std::vector<VerifyWriterHashTreeContext> ctxs;
-			ctxs.reserve(topLevel.blockCount);
-			std::threadpool tp{config.threadNum};
-			while (readPos < info.hashTreeDataExtentSize) {
-				auto &ctx = ctxs.emplace_back(info, inFd, readPos,
-				                              writeHashPos, preHashData);
-				tp.commit(sha256HashTreeTopLevelTask, std::ref(ctx));
-				readPos += blockSize;
-				writeHashPos += SHA256_DIGEST_SIZE;
-			}
-		}
 
-		readPos = writeHashPos = 0;
-		for (const auto &level: levels) {
-			auto *hashData = level.hashData;
-			while (readPos < preLevel->totalHashSize) {
-				memcpy(readData, preHashData + readPos, blockSize);
-				if (!SHA256Utils::sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
-					++*hashTreeExcSize;
+
+			const auto &topLevel = levels[0];
+			const auto *preLevel = &topLevel;
+			auto *preHashData = preLevel->hashData;
+			// top
+			{
+				std::vector<VerifyWriterHashTreeContext> ctxs;
+				ctxs.reserve(topLevel.blockCount);
+				std::threadpool tp{config.threadNum};
+				while (readPos < info.hashTreeDataExtentSize) {
+					auto &ctx = ctxs.emplace_back(info, inFd, readPos, writeHashPos, preHashData);
+					tp.commit(sha256HashTreeTopLevelTask, std::ref(ctx));
+					readPos += blockSize;
+					writeHashPos += SHA256_DIGEST_SIZE;
 				}
-				readPos += blockSize;
-				writeHashPos += SHA256_DIGEST_SIZE;
-				++*currentProgress;
 			}
-			readPos = writeHashPos = 0;
-			preLevel = &level;
-			preHashData = level.hashData;
+			// other
+			{
+				readPos = writeHashPos = 0;
+				for (int i = 1; i < levels.size(); ++i) {
+					auto *hashData = levels[i].hashData;
+					while (readPos < preLevel->totalHashSize) {
+						memcpy(readData, preHashData + readPos, blockSize);
+						if (!SHA256Utils::sha256(sha256Data, SALT_VERIFY_SIZE, hashData + writeHashPos)) {
+							++*hashTreeExcSize;
+						}
+						readPos += blockSize;
+						writeHashPos += SHA256_DIGEST_SIZE;
+						++*currentProgress;
+					}
+					preLevel = &levels[i];
+					preHashData = preLevel->hashData;
+					readPos = writeHashPos = 0;
+				}
+			}
 		}
-		rootLevel = levels.back();
-		levels.pop_back();
+		levels.pop_back(); // remove root hash
+		levels.shrink_to_fit();
 		std::ranges::reverse(levels);
-		levels.emplace_back(topLevel);
 
 	exit:
 		if (progressThread.valid()) progressThread.wait();
@@ -198,6 +203,7 @@ namespace skkk {
 				hashPos += level.totalHashSize;
 			}
 			levels.clear();
+			levels.shrink_to_fit();
 		}
 	exit:
 		IO::closeFd(outFd);
@@ -227,10 +233,10 @@ namespace skkk {
 		const uint32_t rsBlockSize = blockSize * fecRsn;
 
 		std::unique_ptr<void, decltype(&free_rs_char)> rs_char{init_rs_char(FEC_PARAMS(fecRoots)), &free_rs_char};
-		std::vector<uint8_t> rsBlocksData(rsBlockSize);
-		auto *rsBlocks = rsBlocksData.data();
-		std::vector<uint8_t> bufferData(blockSize);
-		auto *buffer = bufferData.data();
+		Buffer<uint8_t> rsBlocksData{rsBlockSize};
+		auto *rsBlocks = rsBlocksData.get();
+		Buffer<uint8_t> bufferData{blockSize};
+		auto *buffer = bufferData.get();
 
 		for (size_t j = 0; j < fecRsn; j++) {
 			uint64_t offset =

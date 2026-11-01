@@ -115,6 +115,7 @@ namespace skkk {
 			std::string hashTreeAlgorithm;
 			// The salt used for verity hash tree.
 			std::string hashTreeSalt;
+			uint64_t hashTreeSaltSize = 0;
 
 			bool hasFecDataExtent = false;;
 			// The extent for data covered by FEC.

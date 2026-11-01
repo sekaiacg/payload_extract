@@ -43,8 +43,8 @@ namespace skkk {
 			// hash tree size
 			uint64_t hashTreeDataSize = 0;
 			std::string hashTreeSalt;
-			Level topHashLevel;
-			mutable Level rootHashLevel;
+			uint64_t hashTreeSaltSize = 0;
+			uint64_t SALT_VERIFY_SIZE = 0;
 			mutable std::vector<Level> hashLevels;
 			uint64_t hashTreeTotalProgress = 0;
 			std::shared_ptr<std::atomic_int> hashTreeProgress = std::make_shared<std::atomic_int>(0);

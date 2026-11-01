@@ -222,6 +222,7 @@ namespace skkk {
 				partInfo.hashTreeExtent = {blockSize, hte.start_block(), hte.num_blocks()};
 				partInfo.hashTreeAlgorithm = pu.hash_tree_algorithm();
 				partInfo.hashTreeSalt = pu.hash_tree_salt();
+				partInfo.hashTreeSaltSize = partInfo.hashTreeSalt.size();
 			}
 
 			if (pu.has_fec_data_extent()) {

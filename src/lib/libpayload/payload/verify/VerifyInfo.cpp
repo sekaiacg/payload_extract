@@ -26,6 +26,8 @@ namespace skkk {
 		hashTreeDataOffset = partInfo.hashTreeExtent.dataOffset;
 		hashTreeDataSize = partInfo.hashTreeExtent.dataLength;
 		hashTreeSalt = partInfo.hashTreeSalt;
+		hashTreeSaltSize = partInfo.hashTreeSaltSize;
+		SALT_VERIFY_SIZE = blockSize + hashTreeSaltSize;
 		hasFecDataExtent = partInfo.hasFecDataExtent;
 		fecDataExtentOffset = partInfo.fecDataExtent.dataOffset;
 		fecDataExtentSize = partInfo.fecDataExtent.dataLength;
