@@ -31,7 +31,7 @@ namespace skkk {
 		public:
 			std::vector<ZipFileItem> zipFiles;
 			PayloadHeader pHeader;
-			DeltaArchiveManifest manifest;
+			std::unique_ptr<DeltaArchiveManifest> manifest = std::make_unique<DeltaArchiveManifest>();
 			DynamicPartitionMetadata dynamicPartitionMetadata{};
 			PartitionInfoMap partitionInfoMap;
 
@@ -71,6 +71,8 @@ namespace skkk {
 			bool parseManifestData();
 
 			bool parsePartitionInfo();
+
+			void freeManifest();
 
 			void printInfo();
 

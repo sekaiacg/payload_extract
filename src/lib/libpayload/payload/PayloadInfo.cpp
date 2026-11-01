@@ -175,8 +175,8 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parseManifestData() {
-		if (manifest.ParseFromArray(pHeader.manifest.get(), pHeader.manifestSize)) {
-			pHeader.blockSize = manifest.block_size();
+		if (manifest->ParseFromArray(pHeader.manifest.get(), pHeader.manifestSize)) {
+			pHeader.blockSize = manifest->block_size();
 			return true;
 		}
 		LOGCE("failed to parse manifest");
@@ -184,17 +184,17 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::parsePartitionInfo() {
-		const auto partitionsSize = manifest.partitions_size();
-		const auto minorVersion = manifest.minor_version();
+		const auto partitionsSize = manifest->partitions_size();
+		const auto minorVersion = manifest->minor_version();
 		const uint64_t offset = payloadOffset + pHeader.inPayloadOffset;
 		const auto blockSize = pHeader.blockSize;
 		const auto &outConfig = config.getOutConfig();
 
 		pHeader.partitionSize = partitionsSize;
 		pHeader.minorVersion = minorVersion;
-		pHeader.securityPatchLevel = manifest.security_patch_level();
+		pHeader.securityPatchLevel = manifest->security_patch_level();
 
-		for (const PartitionUpdate &pu: manifest.partitions()) {
+		for (const PartitionUpdate &pu: manifest->partitions()) {
 			const auto &opi = pu.old_partition_info();
 			const auto &npi = pu.new_partition_info();
 			const auto &partName = pu.partition_name();
@@ -255,9 +255,13 @@ namespace skkk {
 		}
 
 		LOGCD("Partition size: {}", partitionsSize);
-		LOGCD("Minor version: {}", manifest.minor_version());
-		LOGCD("Security patch level: {}", manifest.security_patch_level());
+		LOGCD("Minor version: {}", manifest->minor_version());
+		LOGCD("Security patch level: {}", manifest->security_patch_level());
 		return partitionsSize == partitionInfoMap.size();
+	}
+
+	void PayloadInfo::freeManifest() {
+		manifest = nullptr;
 	}
 
 	void PayloadInfo::printInfo() {
@@ -274,8 +278,9 @@ namespace skkk {
 		if (!parseHeader()) goto out;
 		if (!readHeaderData()) goto out;
 		if (!parseManifestData()) goto out;
-		if (!dynamicPartitionMetadata.parseDynamicPartitionMetadata(manifest)) goto out;
+		if (!dynamicPartitionMetadata.parseDynamicPartitionMetadata(*manifest)) goto out;
 		if (!parsePartitionInfo()) goto out;
+		freeManifest();
 		return true;
 	out:
 		LOGCE("Failed to initialize payload info");
