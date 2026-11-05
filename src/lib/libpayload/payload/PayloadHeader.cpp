@@ -5,7 +5,7 @@
 
 namespace skkk {
 	template<typename T>
-	void readValueFromBytes(T &value, const uint8_t *data, uint64_t &pos) {
+	static void readValueFromBytes(T &value, const uint8_t *data, uint64_t &pos) {
 		auto tmp = *reinterpret_cast<const T *>(data + pos);
 		constexpr uint32_t size = sizeof(T);
 		switch (size) {
@@ -24,26 +24,26 @@ namespace skkk {
 		pos += size;
 	}
 
-	bool parseMagic(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
+	static bool parseMagic(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
 		// magic size 4
 		memcpy(header.magic, data, PAYLOAD_MAGIC_SIZE);
 		pos += PAYLOAD_MAGIC_SIZE;
 		return !strncmp(header.magic, PAYLOAD_MAGIC, PAYLOAD_MAGIC_SIZE);
 	}
 
-	bool parseFileFormatVersion(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
+	static bool parseFileFormatVersion(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
 		// file_format_version size 8
 		readValueFromBytes(header.fileFormatVersion, data, pos);
 		return header.isFileFormatVersionValid();
 	}
 
-	bool parseManifestSize(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
+	static bool parseManifestSize(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
 		// manifest_size size 8
 		readValueFromBytes(header.manifestSize, data, pos);
 		return header.manifestSize > 0;
 	}
 
-	bool parseMetadataSignatureSize(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
+	static bool parseMetadataSignatureSize(PayloadHeader &header, const uint8_t *data, uint64_t &pos) {
 		// metadata_signature_size size 8
 		readValueFromBytes(header.metadataSignatureSize, data, pos);
 		return header.metadataSignatureSize > 0;

@@ -53,10 +53,10 @@ namespace skkk {
 			if (const auto it = std::ranges::find(zip.files, METADATA_FILENAME, &ZipFileItem::name);
 				it != zipFiles.end()) {
 				std::string buffer;
-				buffer.reserve(HEADER_DATA_SIZE);
-				if (download(buffer, it->localHeaderOffset, HEADER_DATA_SIZE)) {
-					return initPayloadOffsetByFastParseZip(reinterpret_cast<const uint8_t *>(buffer.data()),
-					                                       HEADER_DATA_SIZE);
+				uint64_t fileSize = it->uncompressedSize;
+				buffer.reserve(fileSize);
+				if (download(buffer, it->localHeaderOffset, fileSize)) {
+					return initPayloadOffsetByFastParseZip(reinterpret_cast<const uint8_t *>(buffer.data()), fileSize);
 				}
 			}
 		}

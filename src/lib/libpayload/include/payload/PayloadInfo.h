@@ -20,13 +20,16 @@ namespace skkk {
 	class PayloadInfo {
 		protected:
 			static constexpr std::string_view METADATA_FILENAME{"META-INF/com/android/metadata"};
+			static constexpr std::string_view PAYLOAD_FILENAME{"payload.bin"};
 			static constexpr std::string_view OTA_PROP_FILES_PREFIX{"ota-property-files="};
+			static constexpr uint64_t ZLH_SIZE = sizeof(ZipLocalHeader);
 			static constexpr uint32_t HEADER_DATA_SIZE = 8192;
 			const ExtractConfig &config;
 			std::string path;
 			int payloadFd = -1;
-			uint64_t payloadDataSize = 0;
+			uint64_t inputFileSize = 0;
 			uint64_t payloadOffset = 0;
+			uint64_t payloadSize = 0;
 
 		public:
 			std::vector<ZipFileItem> zipFiles;
@@ -52,7 +55,7 @@ namespace skkk {
 
 			bool getPayloadData(uint8_t *data, uint64_t pos, uint64_t len) const;
 
-			bool parsePayloadMetadataFile(const std::string &fileContext);
+			bool parsePayloadMetadataFile(const std::string &fileContent);
 
 			bool initPayloadOffsetByFastParseZip(const uint8_t *data, uint64_t dataSize);
 

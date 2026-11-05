@@ -1,3 +1,4 @@
+#include <charconv>
 #include <cinttypes>
 #include <string>
 
@@ -37,8 +38,8 @@ namespace skkk {
 			LOGCE("Failed to open({}).\n", path);
 			return false;
 		}
-		payloadDataSize = IO::getFileSize(path);
-		if (payloadDataSize <= 0) {
+		inputFileSize = IO::getFileSize(path);
+		if (inputFileSize <= 0) {
 			LOGCE("The payload file cannot be empty.\n");
 			return false;
 		}
@@ -49,29 +50,38 @@ namespace skkk {
 		return IO::blobRead(payloadFd, data, pos, len) == 0;
 	}
 
-	bool PayloadInfo::parsePayloadMetadataFile(const std::string &fileContext) {
-		size_t startPos = fileContext.find(OTA_PROP_FILES_PREFIX);
+	static bool parseInfo(const std::string &tmp, uint64_t &payloadOffset, uint64_t &payloadSize) {
+		size_t first_colon = tmp.find(':');
+		if (first_colon == std::string_view::npos) return false;
+		const char *start_ptr = tmp.data() + first_colon + 1;
+		const char *global_end = tmp.data() + tmp.size();
+		auto [ptr1, ec1] = std::from_chars(start_ptr, global_end, payloadOffset);
+		if (ec1 != std::errc{} || ptr1 == global_end || *ptr1 != ':') {
+			return false;
+		}
+		const char *size_start_ptr = ptr1 + 1;
+		auto [ptr2, ec2] = std::from_chars(size_start_ptr, global_end, payloadSize);
+		if (ec2 != std::errc{}) {
+			return false;
+		}
+		return ptr2 > size_start_ptr;
+	}
+
+	bool PayloadInfo::parsePayloadMetadataFile(const std::string &fileContent) {
+		size_t startPos = fileContent.find(OTA_PROP_FILES_PREFIX);
 		if (startPos != std::string::npos) {
-			size_t endPos = fileContext.find_first_of('\n', startPos + 1);
+			size_t endPos = fileContent.find_first_of('\n', startPos + 1);
 			if (endPos != std::string::npos) {
 				std::string findStr = {
-					fileContext, startPos + OTA_PROP_FILES_PREFIX.size(),
+					fileContent, startPos + OTA_PROP_FILES_PREFIX.size(),
 					endPos - OTA_PROP_FILES_PREFIX.size()
 				};
 				strTrim(findStr);
 				std::vector<std::string> list;
 				splitString(list, findStr, ",", true);
 				for (const auto &tmp: list) {
-					if (tmp.starts_with("payload_metadata.bin")) {
-						std::stringstream ss(tmp);
-						std::string offsetStr;
-						std::string sizeStr;
-						std::getline(ss, offsetStr, ':');
-						std::getline(ss, offsetStr, ':');
-						std::getline(ss, sizeStr);
-						payloadOffset = std::stoll(offsetStr);
-						pHeader.manifestSize = std::stoll(sizeStr);
-						return payloadOffset > 0 && pHeader.manifestSize > 0;
+					if (tmp.starts_with(PAYLOAD_FILENAME)) {
+						return parseInfo(tmp, payloadOffset, payloadSize) && payloadOffset > 0 && payloadSize > 0;
 					}
 				}
 			}
@@ -82,31 +92,38 @@ namespace skkk {
 	bool PayloadInfo::initPayloadOffsetByFastParseZip(const uint8_t *data, uint64_t dataSize) {
 		const auto *zlh = reinterpret_cast<const ZipLocalHeader *>(data);
 		const auto filenameSize = zlh->filenameLength;
-		const auto fileSize = zlh->uncompressedSize;
 		const auto extraFieldSize = zlh->extraFieldLength;
 		if (zlh->compressionMethod == 0) {
-			constexpr uint64_t headerSize = sizeof(ZipLocalHeader);
-			const uint64_t totalSize = headerSize + filenameSize + extraFieldSize + fileSize;
-			const std::string &filename = {reinterpret_cast<const char *>(data) + headerSize, 0, filenameSize};
-			if (filename == METADATA_FILENAME && totalSize <= dataSize) {
-				const std::string fileContext = {
-					reinterpret_cast<const char *>(data) + headerSize + filenameSize + extraFieldSize,
-					fileSize
+			const std::string &filename = {reinterpret_cast<const char *>(data) + ZLH_SIZE, 0, filenameSize};
+			if (zlh->compressedSize == 0xFFFFFFFFL || zlh->uncompressedSize == 0xFFFFFFFFL) {
+				uint64_t extraFieldOffset = ZLH_SIZE + filenameSize;
+				auto eInfo = reinterpret_cast<const Zip64ExtendedInfo *>(data + extraFieldOffset);
+				if (filename == PAYLOAD_FILENAME) {
+					payloadOffset = extraFieldOffset + zlh->extraFieldLength;
+					payloadSize = eInfo->uncompressedSize;
+				}
+				return payloadOffset > 0 && payloadSize > 0;
+			}
+			if (filename == METADATA_FILENAME) {
+				const std::string fileContent = {
+					reinterpret_cast<const char *>(data) + ZLH_SIZE + filenameSize + extraFieldSize,
+					dataSize
 				};
-				return parsePayloadMetadataFile(fileContext);
+				return parsePayloadMetadataFile(fileContent);
 			}
 		}
 		return false;
 	}
 
 	bool PayloadInfo::initPayloadOffsetByParseZip() {
-		if (ZipParser zip{payloadFd, payloadDataSize}; zip.parse()) {
+		if (ZipParser zip{payloadFd, inputFileSize}; zip.parse()) {
 			if (const auto it = std::ranges::find(zip.files, METADATA_FILENAME, &ZipFileItem::name);
 				it != zipFiles.end()) {
-				Buffer<uint8_t> dataBuffer{HEADER_DATA_SIZE};
+				uint64_t fileSize = it->uncompressedSize;
+				Buffer<uint8_t> dataBuffer{fileSize};
 				auto *data = dataBuffer.get();
-				if (IO::blobRead(payloadFd, data, it->localHeaderOffset, HEADER_DATA_SIZE) == 0) {
-					return initPayloadOffsetByFastParseZip(data, payloadDataSize);
+				if (IO::blobRead(payloadFd, data, it->localHeaderOffset, fileSize) == 0) {
+					return initPayloadOffsetByFastParseZip(data, fileSize);
 				}
 			}
 		}
@@ -114,7 +131,7 @@ namespace skkk {
 	}
 
 	bool PayloadInfo::handleOffset() {
-		if (payloadDataSize >= HEADER_DATA_SIZE) {
+		if (inputFileSize >= HEADER_DATA_SIZE) {
 			uint8_t data[HEADER_DATA_SIZE] = {};
 			if (getPayloadData(data, 0, HEADER_DATA_SIZE)) {
 				if (memcmp(data, ZIP_LOCAL_FILE_HEADER_MAGIC,

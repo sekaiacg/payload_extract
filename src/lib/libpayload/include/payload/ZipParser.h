@@ -60,11 +60,15 @@ namespace skkk {
 		uint64_t centralDirOffset;
 	};
 
-	struct Zip64ExtendedInfo {
+	struct Zip64ExtraHeader {
 		uint16_t headerId; // 0x0001
 		uint16_t dataSize;
-		// uint64_t uncompressedSize;
-		// uint64_t compressedSize;
+	};
+
+	struct Zip64ExtendedInfo {
+		Zip64ExtraHeader header;
+		uint64_t uncompressedSize;
+		uint64_t compressedSize;
 		// uint64_t localHeaderOffset;
 		// uint32_t diskNumber;
 	};

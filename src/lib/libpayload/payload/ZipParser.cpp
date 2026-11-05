@@ -113,10 +113,10 @@ namespace skkk {
 			uint64_t localHeaderOffset = header->localHeaderOffset32;
 
 			if (header->extraFieldLength > 0) {
-				const auto extra = reinterpret_cast<Zip64ExtendedInfo *>(buf + entryOffset);
+				const auto extra = reinterpret_cast<Zip64ExtraHeader *>(buf + entryOffset);
 				if (extra->headerId == 0x0001) {
 					uint32_t dataConsumed = 0;
-					auto *data = buf + entryOffset + sizeof(Zip64ExtendedInfo);
+					auto *data = buf + entryOffset + sizeof(Zip64ExtraHeader);
 
 					if (uncompressedSize == 0xFFFFFFFF && dataConsumed + 8 <= extra->dataSize) {
 						uncompressedSize = *reinterpret_cast<uint64_t *>(data + dataConsumed);
