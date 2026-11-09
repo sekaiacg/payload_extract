@@ -7,8 +7,7 @@
 #include <sys/stat.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <io.h>
-#include <windows.h>
+#include "files/win/WinIO.hpp"
 #endif
 
 #include "files/io.h"
@@ -107,85 +106,7 @@ namespace skkk {
 		}
 	}
 
-#if defined(_WIN32) || defined(_WIN64)
-	static ssize_t io_pread(int fd, void *data, uint64_t pos, size_t len) {
-		HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
-		if (hFile == INVALID_HANDLE_VALUE) {
-			return -EBADF;
-		}
-		OVERLAPPED overlapped = {};
-		SSIZE_T read_total = 0;
-		DWORD bytes_to_read = 0;
-		DWORD bytes_read = 0;
-		BOOL success = FALSE;
-		DWORD error = 0;
-		do {
-			overlapped.Internal = 0;
-			overlapped.InternalHigh = 0;
-			overlapped.Offset = static_cast<DWORD>(pos & 0xFFFFFFFF);
-			overlapped.OffsetHigh = static_cast<DWORD>((pos >> 32) & 0xFFFFFFFF);
-			bytes_to_read = static_cast<DWORD>(len - read_total);
-			bytes_read = 0;
-			success = ReadFile(hFile, data, bytes_to_read, &bytes_read, &overlapped);
-			if (!success) {
-				error = GetLastError();
-				if (error == ERROR_HANDLE_EOF) {
-					break;
-				}
-				if (error == ERROR_RETRY) {
-					continue;
-				}
-				return -static_cast<ssize_t>(error);
-			}
-			if (bytes_read == 0) {
-				break;
-			}
-			data = static_cast<uint8_t *>(data) + bytes_read;
-			pos += bytes_read;
-			read_total += bytes_read;
-		} while (static_cast<size_t>(read_total) < len);
-		return read_total;
-	}
-
-	static ssize_t io_pwrite(int fd, const void *data, uint64_t pos, size_t len) {
-		HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
-		if (hFile == INVALID_HANDLE_VALUE) {
-			return -EBADF;
-		}
-		OVERLAPPED overlapped = {};
-		ssize_t write_total = 0;
-		DWORD bytes_to_write = 0;
-		DWORD bytes_written = 0;
-		BOOL success = FALSE;
-		DWORD error = 0;
-		do {
-			overlapped.Internal = 0;
-			overlapped.InternalHigh = 0;
-			overlapped.Offset = static_cast<DWORD>(pos & 0xFFFFFFFF);
-			overlapped.OffsetHigh = static_cast<DWORD>((pos >> 32) & 0xFFFFFFFF);
-			bytes_to_write = static_cast<DWORD>(len - write_total);
-			bytes_written = 0;
-			success = WriteFile(hFile, data, bytes_to_write, &bytes_written, &overlapped);
-			if (!success) {
-				error = GetLastError();
-				if (error == ERROR_RETRY) {
-					continue;
-				}
-				if (error == ERROR_DISK_FULL || error == ERROR_HANDLE_DISK_FULL) {
-					return -ENOSPC;
-				}
-				return -static_cast<ssize_t>(error);
-			}
-			if (bytes_written == 0 && bytes_to_write > 0) {
-				break;
-			}
-			data = static_cast<const uint8_t *>(data) + bytes_written;
-			pos += bytes_written;
-			write_total += bytes_written;
-		} while (static_cast<size_t>(write_total) < len);
-		return write_total;
-	}
-#else
+#if !(defined(_WIN32) || defined(_WIN64))
 	static ssize_t io_pread(int fd, void *data, uint64_t pos, size_t len) {
 		ssize_t ret, read = 0;
 		do {
